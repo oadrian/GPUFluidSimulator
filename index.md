@@ -13,16 +13,16 @@ We are going to implement a fluid simulator using Smoothed Particle Hydrodynamic
 There are two main approaches to fluid simulation we are looking at for this project: grid based simulation, and particle based simulation. Initially we will be implementing a smoothed-particle hydrodynamics fluid simulation.  Though the grid based algorithms have a higher numerical accuracy, particle simulations are faster because they use neighboring particles to compute pressure rather than solving systems of linear equations and mass conservation is better and more intuitive because each particle has its own mass.
 	The general approach of the algorithm is to calculate the contribution to acceleration of each particle from 1) the pressure from its neighbors, 2) the force of gravity, and 3) any external forces.  For each time step, first calculate the density at each particle with the equation:
 <!---  \rho_{i} =  \sum_{j} m_{j}W(r_i - r_j, h) --->
-![alt text](https://github.com/oadrian/GPUFluidSimulator/blob/gh-pages/equations/particle_density.png)
+![particle density](/equations/particle_density.png)
 
 Where mj refers to the mass of the particle at position rj and W(d, h) is the smoothing kernel with core radius h. The Gaussian Kernel function is
 <!--- W(d) =  \frac{1}{ \pi ^{3/2} h^3}exp( \frac{r^2}{h^2} ) --->
-![alt text](https://github.com/oadrian/GPUFluidSimulator/blob/gh-pages/equations/gaussian_kernel.png)
+![gaussian kernel](/equations/gaussian_kernel.png)
 
 Particles further than distance 2h are not counted as affecting the particle being calculated.  This offers opportunity for parallelism because it means that parts of the fluid that are further away from each other are not dependent on each other and can be calculated concurrently.
 After finding the density, we find the force of the pressure with the following equation:
 <!--- f_{i}^{pressure} = -  \sum_{j} \frac{m_{j}}{ \rho_{j}} \frac{(p_{i} - p_{j})}{2} \nabla W(r - r_{j}, h) --->
-![alt text](https://github.com/oadrian/GPUFluidSimulator/blob/gh-pages/equations/force_pressure_eq.png)
+![force pressure](/equations/force_pressure_eq.png)
 
 Once we know the force on each particle from pressure, we can add it to the force of gravity, calculate the overall acceleration and update positions accordingly.  With a huge number of particles necessary for an accurate simulation, we can parallelize over nearby groups of particles.  One thing we will need to be mindful of is, similar to the Barnes-Hut simulation, is the changes in position overtime will necessitate the periodic updating of the particle groups.
 
