@@ -31,3 +31,5 @@
 *.out
 *.app
 *.opendb
+/fluid_sim/CPU/Debug
+/fluid_sim/Debug
