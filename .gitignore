@@ -33,3 +33,6 @@
 *.opendb
 /fluid_sim/CPU/Debug
 /fluid_sim/Debug
+
+# Visual Studio Files
+fluid_sim/.vs
