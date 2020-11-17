@@ -6,10 +6,10 @@
 #include <mutex>
 #include <string>
 
-inline std::mutex printf_lock;
+//std::mutex printf_lock
 
 inline void log(std::string fmt, ...) {
-    std::lock_guard<std::mutex> lock(printf_lock);
+    //std::lock_guard<std::mutex> lock(printf_lock);
     va_list args;
     va_start(args, fmt);
     vprintf(fmt.c_str(), args);

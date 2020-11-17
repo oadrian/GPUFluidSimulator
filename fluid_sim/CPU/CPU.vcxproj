@@ -142,6 +142,24 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CPU.cpp" />
+    <ClCompile Include="FluidSim.cpp" />
+    <ClCompile Include="Particle.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="FluidSim.h" />
+    <ClInclude Include="lib\bbox.h" />
+    <ClInclude Include="lib\line.h" />
+    <ClInclude Include="lib\log.h" />
+    <ClInclude Include="lib\mat4.h" />
+    <ClInclude Include="lib\mathlib.h" />
+    <ClInclude Include="lib\plane.h" />
+    <ClInclude Include="lib\quat.h" />
+    <ClInclude Include="lib\ray.h" />
+    <ClInclude Include="lib\spectrum.h" />
+    <ClInclude Include="lib\vec2.h" />
+    <ClInclude Include="lib\vec3.h" />
+    <ClInclude Include="lib\vec4.h" />
+    <ClInclude Include="Particle.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

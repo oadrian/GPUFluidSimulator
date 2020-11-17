@@ -13,10 +13,63 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{6007d393-9245-45b3-874a-f5970b0e207f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CPU.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FluidSim.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Particle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="lib\bbox.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\line.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\mathlib.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\plane.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\quat.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\ray.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\spectrum.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\vec2.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\vec3.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="Particle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidSim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\log.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\vec4.h">
+      <Filter>lib</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\mat4.h">
+      <Filter>lib</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
