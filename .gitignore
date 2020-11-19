@@ -1,3 +1,12 @@
+# SPH bin
+./SPH/bin/
+!./SPH/bin/freeglut.dll
+!./SPH/bin/FreeImage.dll
+!./SPH/bin/glew64.dll
+
+# x64 folder
+./SPH/x64/
+
 # Prerequisites
 *.d
 
@@ -14,7 +23,6 @@
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
 
 # Fortran module files
 *.mod
@@ -30,3 +38,14 @@
 *.exe
 *.out
 *.app
+*.pdb
+
+# Visual C++ cache files
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*/.vs
+*.log
