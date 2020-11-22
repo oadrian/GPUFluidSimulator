@@ -24,13 +24,8 @@ struct SimParams
     float3 gravity;
     float particleRadius;
 
-    uint3 gridSize;
-    uint numCells;
-    float3 worldOrigin;
-    float3 cellSize;
-
-    uint numBodies;
-    uint maxParticlesPerCell;
+    float3 boxMin;
+    float3 boxMax;
 };
 
 #endif

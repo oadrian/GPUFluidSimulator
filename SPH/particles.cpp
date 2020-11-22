@@ -55,7 +55,7 @@
 #define MAX_EPSILON_ERROR 5.00f
 #define THRESHOLD         0.30f
 
-#define GRID_SIZE       64
+#define BOX_SIZE 5.f
 #define NUM_PARTICLES   16384
 
 const uint width = 640, height = 480;
@@ -116,9 +116,9 @@ const char *sSDKsample = "CUDA Particles Simulation";
 extern "C" void cudaGLInit(int argc, char **argv);
 
 // initialize particle system
-void initParticleSystem(int numParticles, uint3 gridSize, bool bUseOpenGL)
+void initParticleSystem(int numParticles, float3 boxDims, bool bUseOpenGL)
 {
-    psystem = new ParticleSystem(numParticles, gridSize, bUseOpenGL);
+    psystem = new ParticleSystem(numParticles, boxDims, bUseOpenGL);
     psystem->reset(ParticleSystem::CONFIG_GRID);
 
     if (bUseOpenGL)
@@ -266,8 +266,7 @@ void display()
 
     // cube
     glColor3f(1.0, 1.0, 1.0);
-    glutWireCube(2.0);
-
+    glutWireCube(BOX_SIZE);
     // collider
     glPushMatrix();
     float3 p = psystem->getColliderPos();
@@ -668,7 +667,10 @@ main(int argc, char **argv)
     printf("NOTE: The CUDA Samples are not meant for performance measurements. Results may vary when GPU Boost is enabled.\n\n");
 
     numParticles = NUM_PARTICLES;
-    uint gridDim = GRID_SIZE;
+    float3 boxDims;
+    boxDims.x = BOX_SIZE;
+    boxDims.y = BOX_SIZE;
+    boxDims.z = BOX_SIZE;
     numIterations = 0;
 
     if (argc > 1)
@@ -678,9 +680,11 @@ main(int argc, char **argv)
             numParticles = getCmdLineArgumentInt(argc, (const char **)argv, "n");
         }
 
-        if (checkCmdLineFlag(argc, (const char **) argv, "grid"))
+        if (checkCmdLineFlag(argc, (const char **) argv, "box"))
         {
-            gridDim = getCmdLineArgumentInt(argc, (const char **) argv, "grid");
+            uint boxDim;
+            boxDim = getCmdLineArgumentInt(argc, (const char **) argv, "box");
+            boxDims.x = boxDims.y = boxDims.z = boxDim;
         }
 
         if (checkCmdLineFlag(argc, (const char **)argv, "file"))
@@ -691,8 +695,7 @@ main(int argc, char **argv)
         }
     }
 
-    gridSize.x = gridSize.y = gridSize.z = gridDim;
-    printf("grid: %d x %d x %d = %d cells\n", gridSize.x, gridSize.y, gridSize.z, gridSize.x*gridSize.y*gridSize.z);
+    printf("box: %f x %f x %f\n", boxDims.x, boxDims.y, boxDims.z);
     printf("particles: %d\n", numParticles);
 
     bool benchmark = checkCmdLineFlag(argc, (const char **) argv, "benchmark") != 0;
@@ -724,7 +727,7 @@ main(int argc, char **argv)
         //cudaInit(argc, argv);
     }
 
-    initParticleSystem(numParticles, gridSize, !benchmark && g_refFile==NULL);
+    initParticleSystem(numParticles, boxDims, !benchmark && g_refFile==NULL);
     initParams();
 
     if (benchmark || g_refFile)

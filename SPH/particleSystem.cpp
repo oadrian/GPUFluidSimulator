@@ -32,34 +32,27 @@
 #define CUDART_PI_F         3.141592654f
 #endif
 
-ParticleSystem::ParticleSystem(uint numParticles, uint3 gridSize, bool bUseOpenGL) :
+ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenGL) :
     m_bInitialized(false),
     m_bUseOpenGL(bUseOpenGL),
     m_numParticles(numParticles),
     m_hPos(0),
     m_hVel(0),
-    m_gridSize(gridSize),
+    m_boxDims(boxDims),
     m_timer(NULL),
     m_solverIterations(1)
 {
-    m_numGridCells = m_gridSize.x*m_gridSize.y*m_gridSize.z;
-    //    float3 worldSize = make_float3(2.0f, 2.0f, 2.0f);
-
     // set simulation parameters
-    m_params.gridSize = m_gridSize;
-    m_params.numCells = m_numGridCells;
-    m_params.numBodies = m_numParticles;
-
     m_params.particleRadius = 1.0f / 64.0f;
     m_params.colliderPos = make_float3(-1.2f, -0.8f, 0.8f);
     m_params.colliderRadius = 0.2f;
-
-    m_params.worldOrigin = make_float3(-1.0f, -1.0f, -1.0f);
-    //    m_params.cellSize = make_float3(worldSize.x / m_gridSize.x, worldSize.y / m_gridSize.y, worldSize.z / m_gridSize.z);
-    float cellSize = m_params.particleRadius * 2.0f;  // cell size equal to particle diameter
-    m_params.cellSize = make_float3(cellSize, cellSize, cellSize);
-
     m_params.gravity = make_float3(0.0f, -0.0003f, 0.0f);
+    m_params.boxMin.x = - boxDims.x / 2;
+    m_params.boxMin.y = - boxDims.y / 2;
+    m_params.boxMin.z = - boxDims.z / 2;
+    m_params.boxMax.x = boxDims.x / 2;
+    m_params.boxMax.y = boxDims.y / 2;
+    m_params.boxMax.z = boxDims.z / 2;
 
     _initialize(numParticles);
 }
@@ -278,9 +271,13 @@ ParticleSystem::initGrid(uint *size, float spacing, float jitter, uint numPartic
 
                 if (i < numParticles)
                 {
-                    m_hPos[i*4] = (spacing * x) + m_params.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
-                    m_hPos[i*4+1] = (spacing * y) + m_params.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
-                    m_hPos[i*4+2] = (spacing * z) + m_params.particleRadius - 1.0f + (frand()*2.0f-1.0f)*jitter;
+                    float w, h, d;
+                    w = m_boxDims.x;
+                    h = m_boxDims.y;
+                    d = m_boxDims.z;
+                    m_hPos[i*4] = (spacing * x) + m_params.particleRadius + m_params.boxMin.x + (w * frand() - w / 2)*jitter;
+                    m_hPos[i*4+1] = (spacing * y) + m_params.particleRadius + m_params.boxMin.y + (h * frand() - h / 2)*jitter;
+                    m_hPos[i*4+2] = (spacing * z) + m_params.particleRadius + m_params.boxMin.z + (d * frand() - d / 2)*jitter;
                     m_hPos[i*4+3] = 1.0f;
 
                     m_hVel[i*4] = 0.0f;
@@ -305,13 +302,13 @@ ParticleSystem::reset(ParticleConfig config)
 
                 for (uint i=0; i < m_numParticles; i++)
                 {
-                    float point[3];
-                    point[0] = frand();
-                    point[1] = frand();
-                    point[2] = frand();
-                    m_hPos[p++] = 2 * (point[0] - 0.5f);
-                    m_hPos[p++] = 2 * (point[1] - 0.5f);
-                    m_hPos[p++] = 2 * (point[2] - 0.5f);
+                    float w, h, d;
+                    w = m_boxDims.x;
+                    h = m_boxDims.y;
+                    d = m_boxDims.z;
+                    m_hPos[p++] = w * frand() - w / 2;
+                    m_hPos[p++] = h * frand() - h / 2;
+                    m_hPos[p++] = d * frand() - d / 2;
                     m_hPos[p++] = 1.0f; // radius
                     m_hVel[v++] = 0.0f;
                     m_hVel[v++] = 0.0f;
@@ -340,6 +337,10 @@ void
 ParticleSystem::addSphere(int start, float *pos, float *vel, int r, float spacing)
 {
     uint index = start;
+    float w, h, d;
+    w = m_boxDims.x;
+    h = m_boxDims.y;
+    d = m_boxDims.z;
 
     for (int z=-r; z<=r; z++)
     {
@@ -355,9 +356,9 @@ ParticleSystem::addSphere(int start, float *pos, float *vel, int r, float spacin
 
                 if ((l <= m_params.particleRadius*2.0f*r) && (index < m_numParticles))
                 {
-                    m_hPos[index*4]   = pos[0] + dx + (frand()*2.0f-1.0f)*jitter;
-                    m_hPos[index*4+1] = pos[1] + dy + (frand()*2.0f-1.0f)*jitter;
-                    m_hPos[index*4+2] = pos[2] + dz + (frand()*2.0f-1.0f)*jitter;
+                    m_hPos[index*4]   = pos[0] + dx + (w * frand() - w / 2)*jitter;
+                    m_hPos[index*4+1] = pos[1] + dy + (h * frand() - h / 2)*jitter;
+                    m_hPos[index*4+2] = pos[2] + dz + (d * frand() - d / 2)*jitter;
                     m_hPos[index*4+3] = pos[3];
 
                     m_hVel[index*4]   = vel[0];

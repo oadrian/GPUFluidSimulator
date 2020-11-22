@@ -23,7 +23,7 @@
 class ParticleSystem
 {
     public:
-        ParticleSystem(uint numParticles, uint3 gridSize, bool bUseOpenGL);
+        ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenGL);
         ~ParticleSystem();
 
         enum ParticleConfig
@@ -70,44 +70,30 @@ class ParticleSystem
 
         void dumpParticles(uint start, uint count);
 
-        void setIterations(int i)
-        {
+        void setIterations(int i) {
             m_solverIterations = i;
         }
-
-        void setGravity(float x)
-        {
+        void setGravity(float x) {
             m_params.gravity = make_float3(0.0f, x, 0.0f);
         }
-        
-        void setColliderPos(float3 x)
-        {
+        void setColliderPos(float3 x) {
             m_params.colliderPos = x;
         }
 
-        float getParticleRadius()
-        {
-            return m_params.particleRadius;
-        }
-        float3 getColliderPos()
-        {
+        float3 getColliderPos() {
             return m_params.colliderPos;
         }
-        float getColliderRadius()
-        {
+        float getColliderRadius() {
             return m_params.colliderRadius;
         }
-        uint3 getGridSize()
-        {
-            return m_params.gridSize;
+        float getParticleRadius() {
+            return m_params.particleRadius;
         }
-        float3 getWorldOrigin()
-        {
-            return m_params.worldOrigin;
+        float3 getBoxMin() {
+            return m_params.boxMin;
         }
-        float3 getCellSize()
-        {
-            return m_params.cellSize;
+        float3 getBoxMax() {
+            return m_params.boxMax;
         }
 
         void addSphere(int index, float *pos, float *vel, int r, float spacing);
@@ -137,8 +123,7 @@ class ParticleSystem
 
         // params
         SimParams m_params;
-        uint3 m_gridSize;
-        uint m_numGridCells;
+        float3 m_boxDims;
 
         StopWatchInterface *m_timer;
 
