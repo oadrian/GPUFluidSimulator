@@ -1,11 +1,11 @@
 # SPH bin
-./SPH/bin/
+bin/
 !./SPH/bin/freeglut.dll
 !./SPH/bin/FreeImage.dll
 !./SPH/bin/glew64.dll
 
 # x64 folder
-./SPH/x64/
+x64/
 
 # Prerequisites
 *.d
