@@ -88,15 +88,9 @@ int numIterations = 0; // run until exit
 
 // simulation parameters
 float timestep = 0.5f;
-float damping = 1.0f;
 float gravity = 0.0003f;
 int iterations = 1;
 int ballr = 10;
-
-float collideSpring = 0.5f;;
-float collideDamping = 0.02f;;
-float collideShear = 0.1f;
-float collideAttraction = 0.0f;
 
 ParticleSystem *psystem = 0;
 
@@ -119,9 +113,7 @@ char        *g_refFile = NULL;
 
 const char *sSDKsample = "CUDA Particles Simulation";
 
-extern "C" void cudaInit(int argc, char **argv);
 extern "C" void cudaGLInit(int argc, char **argv);
-extern "C" void copyArrayFromDevice(void *host, const void *device, unsigned int vbo, int size);
 
 // initialize particle system
 void initParticleSystem(int numParticles, uint3 gridSize, bool bUseOpenGL)
@@ -199,7 +191,7 @@ void runBenchmark(int iterations, char *exec_path)
     printf("particles, Throughput = %.4f KParticles/s, Time = %.5f s, Size = %u particles, NumDevsUsed = %u, Workgroup = %u\n",
            (1.0e-3 * numParticles)/fAvgSeconds, fAvgSeconds, numParticles, 1, 0);
 
-    if (g_refFile)
+    /*if (g_refFile)
     {
         printf("\nChecking result...\n\n");
         float *hPos = (float *)malloc(sizeof(float)*4*psystem->getNumParticles());
@@ -213,7 +205,7 @@ void runBenchmark(int iterations, char *exec_path)
         {
             g_TotalErrors++;
         }
-    }
+    }*/
 }
 
 void computeFPS()
@@ -243,12 +235,7 @@ void display()
     if (!bPause)
     {
         psystem->setIterations(iterations);
-        psystem->setDamping(damping);
         psystem->setGravity(-gravity);
-        psystem->setCollideSpring(collideSpring);
-        psystem->setCollideDamping(collideDamping);
-        psystem->setCollideShear(collideShear);
-        psystem->setCollideAttraction(collideAttraction);
 
         psystem->update(timestep);
 
@@ -537,10 +524,6 @@ void key(unsigned char key, int /*x*/, int /*y*/)
                           ((displayMode + 1) % ParticleRenderer::PARTICLE_NUM_MODES);
             break;
 
-        case 'd':
-            psystem->dumpGrid();
-            break;
-
         case 'u':
             psystem->dumpParticles(0, numParticles-1);
             break;
@@ -636,27 +619,16 @@ void initParams()
     if (g_refFile)
     {
         timestep = 0.0f;
-        damping = 0.0f;
         gravity = 0.0f;
         ballr = 1;
-        collideSpring = 0.0f;
-        collideDamping = 0.0f;
-        collideShear = 0.0f;
-        collideAttraction = 0.0f;
     }
     else
     {
         // create a new parameter list
         params = new ParamListGL("misc");
         params->AddParam(new Param<float>("time step", timestep, 0.0f, 1.0f, 0.01f, &timestep));
-        params->AddParam(new Param<float>("damping"  , damping , 0.0f, 1.0f, 0.001f, &damping));
         params->AddParam(new Param<float>("gravity"  , gravity , 0.0f, 0.001f, 0.0001f, &gravity));
         params->AddParam(new Param<int> ("ball radius", ballr , 1, 20, 1, &ballr));
-
-        params->AddParam(new Param<float>("collide spring" , collideSpring , 0.0f, 1.0f, 0.001f, &collideSpring));
-        params->AddParam(new Param<float>("collide damping", collideDamping, 0.0f, 0.1f, 0.001f, &collideDamping));
-        params->AddParam(new Param<float>("collide shear"  , collideShear  , 0.0f, 0.1f, 0.001f, &collideShear));
-        params->AddParam(new Param<float>("collide attract", collideAttraction, 0.0f, 0.1f, 0.001f, &collideAttraction));
     }
 }
 
@@ -732,7 +704,8 @@ main(int argc, char **argv)
 
     if (benchmark || g_refFile)
     {
-        cudaInit(argc, argv);
+        // uncomment this line when ready for cuda implementation
+        //cudaInit(argc, argv);  
     }
     else
     {
@@ -747,7 +720,8 @@ main(int argc, char **argv)
         }
 
         initGL(&argc, argv);
-        cudaInit(argc, argv);
+        // uncomment this line when ready for cuda implementation
+        //cudaInit(argc, argv);
     }
 
     initParticleSystem(numParticles, gridSize, !benchmark && g_refFile==NULL);

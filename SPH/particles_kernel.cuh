@@ -22,7 +22,6 @@ struct SimParams
     float  colliderRadius;
 
     float3 gravity;
-    float globalDamping;
     float particleRadius;
 
     uint3 gridSize;
@@ -32,12 +31,6 @@ struct SimParams
 
     uint numBodies;
     uint maxParticlesPerCell;
-
-    float spring;
-    float damping;
-    float shear;
-    float attraction;
-    float boundaryDamping;
 };
 
 #endif

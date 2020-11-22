@@ -68,7 +68,6 @@ class ParticleSystem
             return (void *)m_cudaColorVBO;
         }
 
-        void dumpGrid();
         void dumpParticles(uint start, uint count);
 
         void setIterations(int i)
@@ -76,32 +75,11 @@ class ParticleSystem
             m_solverIterations = i;
         }
 
-        void setDamping(float x)
-        {
-            m_params.globalDamping = x;
-        }
         void setGravity(float x)
         {
             m_params.gravity = make_float3(0.0f, x, 0.0f);
         }
-
-        void setCollideSpring(float x)
-        {
-            m_params.spring = x;
-        }
-        void setCollideDamping(float x)
-        {
-            m_params.damping = x;
-        }
-        void setCollideShear(float x)
-        {
-            m_params.shear = x;
-        }
-        void setCollideAttraction(float x)
-        {
-            m_params.attraction = x;
-        }
-
+        
         void setColliderPos(float3 x)
         {
             m_params.colliderPos = x;
@@ -151,33 +129,11 @@ class ParticleSystem
         float *m_hPos;              // particle positions
         float *m_hVel;              // particle velocities
 
-        uint  *m_hParticleHash;
-        uint  *m_hCellStart;
-        uint  *m_hCellEnd;
-
-        // GPU data
-        float *m_dPos;
-        float *m_dVel;
-
-        float *m_dSortedPos;
-        float *m_dSortedVel;
-
-        // grid data for sorting method
-        uint  *m_dGridParticleHash; // grid hash value for each particle
-        uint  *m_dGridParticleIndex;// particle index for each particle
-        uint  *m_dCellStart;        // index of start of each cell in sorted list
-        uint  *m_dCellEnd;          // index of end of cell
-
-        uint   m_gridSortBits;
-
         uint   m_posVbo;            // vertex buffer object for particle positions
         uint   m_colorVBO;          // vertex buffer object for colors
 
         float *m_cudaPosVBO;        // these are the CUDA deviceMem Pos
         float *m_cudaColorVBO;      // these are the CUDA deviceMem Color
-
-        struct cudaGraphicsResource *m_cuda_posvbo_resource; // handles OpenGL-CUDA exchange
-        struct cudaGraphicsResource *m_cuda_colorvbo_resource; // handles OpenGL-CUDA exchange
 
         // params
         SimParams m_params;

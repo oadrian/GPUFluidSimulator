@@ -109,19 +109,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="particleSystem.cpp" />
-    <CudaCompile Include="particleSystem_cuda.cu" />
     <ClCompile Include="particles.cpp" />
     <ClCompile Include="render_particles.cpp" />
     <ClCompile Include="shaders.cpp" />
+    <ClInclude Include="common\inc\param.h" />
+    <ClInclude Include="common\inc\paramgl.h" />
     <ClInclude Include="particleSystem.h" />
     <ClInclude Include="render_particles.h" />
     <ClInclude Include="shaders.h" />
-    <ClInclude Include="..\..\common\inc\param.h" />
-    <ClInclude Include="..\..\common\inc\paramgl.h" />
     <ClInclude Include="..\..\common\inc\rendercheck_gl.h" />
-    <None Include="particleSystem.cuh" />
     <None Include="particles_kernel.cuh" />
-    <None Include="particles_kernel_impl.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
