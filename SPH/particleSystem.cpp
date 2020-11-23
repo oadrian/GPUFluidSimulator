@@ -37,7 +37,6 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
     m_bUseOpenGL(bUseOpenGL),
     m_numParticles(numParticles),
     m_hPos(0),
-    m_hVel(0),
     m_boxDims(boxDims),
     m_timer(NULL),
     m_solverIterations(1)
@@ -110,9 +109,9 @@ ParticleSystem::_initialize(int numParticles)
 
     // allocate host storage
     m_hPos = new float[m_numParticles*4];
-    m_hVel = new float[m_numParticles*4];
     memset(m_hPos, 0, m_numParticles*4*sizeof(float));
-    memset(m_hVel, 0, m_numParticles*4*sizeof(float));
+
+    m_particles.resize(m_numParticles);
 
     // allocate GPU data
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
@@ -167,7 +166,7 @@ ParticleSystem::_finalize()
     assert(m_bInitialized);
 
     delete [] m_hPos;
-    delete [] m_hVel;
+    m_particles.clear();
 
     if (m_bUseOpenGL)
     {
@@ -181,26 +180,159 @@ ParticleSystem::_finalize()
     }
 }
 
+// https://matthias-research.github.io/pages/publications/sca03.pdf
+// https://lucasschuermann.com/writing/implementing-sph-in-2d
+float ParticleSystem::pressure_ideal_gas(const Particle& p) {
+    return Kp* (p.density - REST_DENSITY);
+}
+
+// https://cg.informatik.uni-freiburg.de/publications/2007_SCA_SPH.pdf
+// https://en.wikipedia.org/wiki/Tait_equation
+float ParticleSystem::pressure_tait_eq(const Particle& p) {
+    const float cs = 88.5f;
+    const float gamma = 7.f;
+    const float B = (REST_DENSITY * cs * cs) / gamma;
+    float quot = p.density / REST_DENSITY;
+    float quot_exp_gamma = quot * quot * quot * quot * quot * quot * quot;
+    return B * ((quot_exp_gamma) - 1.f);
+}
+
+float ParticleSystem::guass_kernel(float3 rij, float h) {
+    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
+    float q = norm(rij) / h;
+    if (q < 3.0f) {
+        return sigma * std::expf(-q * q);
+    }
+    else {
+        return 0.f;
+    }
+}
+
+float3 ParticleSystem::guass_kernel_gradient(float3 rij, float h) {
+    float3 grad = unit(rij);
+    float n = norm(rij);
+    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
+    float q = n / h;
+    if (n > 1e-20f && q < 3.0f) {
+        float dq = -2.0f * q * sigma * std::expf(-q * q);
+        grad.x *= dq;
+        grad.y *= dq;
+        grad.z *= dq;
+        /*if (grad.x != grad.x || grad.y != grad.y || grad.z != grad.z) {
+            float3 u = unit(rij);
+            printf("grad <%f, %f, %f>, dq %f, q %f, sigma %f, unit <%f, %f, %f>\n", grad.x, grad.y, grad.z, dq, q, sigma, u.x, u.y, u.z);
+        }*/
+        return grad;
+    }
+    else {
+        return { 0.f,0.f,0.f };
+    }
+}
+
+void ParticleSystem::computeDensities() {
+    for (Particle &pi : m_particles) {
+        pi.density = 0.f;
+        for (Particle &pj : m_particles) {
+            float3 rij = { pi.position.x - pj.position.x, pi.position.y - pj.position.y, pi.position.z - pj.position.z };
+            pi.density += pj.mass * guass_kernel(rij, SMOOTH_WIDTH);
+        }
+        pi.pressure = pressure_ideal_gas(pi);
+    }
+}
+
+void ParticleSystem::computeForces() {
+    for (Particle& pi : m_particles) {
+        for (Particle& pj : m_particles) {
+            float3 rij = { pi.position.x - pj.position.x, pi.position.y - pj.position.y, pi.position.z - pj.position.z };
+            float3 grad = guass_kernel_gradient(rij, SMOOTH_WIDTH);
+            float k = -(pj.mass / pj.density) * 0.5f * (pi.pressure + pi.pressure);
+            pi.force.x += k * grad.x;
+            pi.force.y += k * grad.y;
+            pi.force.z += k * grad.z;
+            /*if (pi.force.x != pi.force.x || pi.force.y != pi.force.y || pi.force.z != pi.force.z) {
+                printf("force <%f, %f, %f>, k %f, grad <%f, %f, %f>", pi.force.x, pi.force.y, pi.force.z, k, grad.x, grad.y, grad.z);
+                while (1);
+            }*/
+        }
+        pi.force.y += pi.mass * GRAVITY;
+    }
+}
+
+void ParticleSystem::integrate(float deltaTime) {
+    for (Particle& p : m_particles) {
+        float3 accel;
+        accel.x = p.force.x / p.density;
+        accel.y = p.force.y / p.density;
+        accel.z = p.force.z / p.density;
+
+        p.velocity.x += deltaTime * accel.x;
+        p.velocity.y += deltaTime * accel.y;
+        p.velocity.z += deltaTime * accel.z;
+
+        p.position.x += deltaTime * p.velocity.x;
+        p.position.y += deltaTime * p.velocity.y;
+        p.position.z += deltaTime * p.velocity.z;
+
+        // bounds check in X
+        if (p.position.x - EPS_F < m_params.boxMin.x) {
+            p.position.x = m_params.boxMin.x + EPS_F;
+            p.velocity.x *= -1.f;  // reverse direction
+        } 
+        if (p.position.x + EPS_F > m_params.boxMax.x) {
+            p.position.x = m_params.boxMax.x - EPS_F;
+            p.velocity.x *= -1.f;  // reverse direction
+        }
+
+        // bounds check in Y
+        if (p.position.y - EPS_F < m_params.boxMin.y) {
+            p.position.y = m_params.boxMin.y + EPS_F;
+            p.velocity.y *= -1.f;  // reverse direction
+        }
+        if (p.position.y + EPS_F > m_params.boxMax.y) {
+            p.position.y = m_params.boxMax.y - EPS_F;
+            p.velocity.y *= -1.f;  // reverse direction
+        }
+
+        // bounds check in Z
+        if (p.position.z - EPS_F < m_params.boxMin.z) {
+            p.position.z = m_params.boxMin.z + EPS_F;
+            p.velocity.z *= -1.f;  // reverse direction
+        }
+        if (p.position.z + EPS_F > m_params.boxMax.z) {
+            p.position.z = m_params.boxMax.z - EPS_F;
+            p.velocity.z *= -1.f;  // reverse direction
+        }
+
+        m_hPos[p.index * 4 + 0] = p.position.x;
+        m_hPos[p.index * 4 + 1] = p.position.y;
+        m_hPos[p.index * 4 + 2] = p.position.z;
+        m_hPos[p.index * 4 + 3] = p.position.w;
+    }
+}
+
 // step the simulation
 void
 ParticleSystem::update(float deltaTime)
 {
     assert(m_bInitialized);
 
-    float *dPos;
+    // N^2 algorithm for calculating density for each particle, computes pressure as well
+    computeDensities();
 
-    if (m_bUseOpenGL)
-    {
-    }
-    else
-    {
-        dPos = (float *) m_cudaPosVBO;
-    }
+    
+    // computes pressure and gravity force contribution on each particle
+    computeForces();
 
-    // note: do unmap at end here to avoid unnecessary graphics/CUDA context switch
-    if (m_bUseOpenGL)
-    {
-    }
+    // integrates velocity and position based on forces
+    integrate(deltaTime);
+    /*for (uint i = 0; i < m_particles.size(); i++) {
+        Particle& p = m_particles.at(i);
+        printf("particle %u mass %f, density %f, pressure %f, position <%f, %f, %f>, force <%f, %f, %f>\n", 
+            p.index, p.mass, p.density, p.pressure, p.position.x, p.position.y, p.position.z, p.force.x, p.force.y, p.force.z);
+    }*/
+
+    // update the vertex buffer object
+    updatePosVBO();
 }
 
 void
@@ -212,42 +344,16 @@ ParticleSystem::dumpParticles(uint start, uint count)
     {
         //        printf("%d: ", i);
         printf("pos: (%.4f, %.4f, %.4f, %.4f)\n", m_hPos[i*4+0], m_hPos[i*4+1], m_hPos[i*4+2], m_hPos[i*4+3]);
-        printf("vel: (%.4f, %.4f, %.4f, %.4f)\n", m_hVel[i*4+0], m_hVel[i*4+1], m_hVel[i*4+2], m_hVel[i*4+3]);
     }
 }
 
-float *
-ParticleSystem::getArray(ParticleArray array)
-{
-    assert(m_bInitialized);
-
-    printf("getArray unimplemented\n");
-}
-
-void
-ParticleSystem::setArray(ParticleArray array, const float *data, int start, int count)
-{
-    assert(m_bInitialized);
-
-    switch (array)
-    {
-        default:
-        case POSITION:
-            {
-                if (m_bUseOpenGL)
-                {
-                    glBindBuffer(GL_ARRAY_BUFFER, m_posVbo);
-                    glBufferSubData(GL_ARRAY_BUFFER, start*4*sizeof(float), count*4*sizeof(float), data);
-                    glBindBuffer(GL_ARRAY_BUFFER, 0);
-                }
-                else
-                {
-                }
-            }
-            break;
-
-        case VELOCITY:
-            break;
+void ParticleSystem::updatePosVBO() {
+    if (m_bUseOpenGL) {
+        glBindBuffer(GL_ARRAY_BUFFER, m_posVbo);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, m_numParticles * 4 * sizeof(float), m_hPos);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    else {
     }
 }
 
@@ -275,19 +381,28 @@ ParticleSystem::initGrid(uint *size, float spacing, float jitter, uint numPartic
                     w = m_boxDims.x;
                     h = m_boxDims.y;
                     d = m_boxDims.z;
-                    m_hPos[i*4] = (spacing * x) + m_params.particleRadius + m_params.boxMin.x + (w * frand() - w / 2)*jitter;
-                    m_hPos[i*4+1] = (spacing * y) + m_params.particleRadius + m_params.boxMin.y + (h * frand() - h / 2)*jitter;
-                    m_hPos[i*4+2] = (spacing * z) + m_params.particleRadius + m_params.boxMin.z + (d * frand() - d / 2)*jitter;
-                    m_hPos[i*4+3] = 1.0f;
-
-                    m_hVel[i*4] = 0.0f;
-                    m_hVel[i*4+1] = 0.0f;
-                    m_hVel[i*4+2] = 0.0f;
-                    m_hVel[i*4+3] = 0.0f;
+                    Particle& p = m_particles.at(i);
+                    p.index = i;
+                    p.position.x = (spacing * x) + m_params.particleRadius + m_params.boxMin.x + (w * frand() - w / 2) * jitter;
+                    p.position.y = (spacing * y) + m_params.particleRadius + m_params.boxMin.y + (h * frand() - h / 2) * jitter;
+                    p.position.z = (spacing * z) + m_params.particleRadius + m_params.boxMin.z + (d * frand() - d / 2) * jitter;
+                    p.position.w = 1.0f;
+                    p.velocity = { 0.f,0.f,0.f };
+                    p.force = { 0.f,0.f,0.f };
+                    float r = m_params.particleRadius;
+                    p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
+                    p.density = REST_DENSITY;
+                    p.pressure = DEFAULT_PRESSURE;
+                    p.radius = m_params.particleRadius;
+                    m_hPos[p.index * 4 + 0] = p.position.x;
+                    m_hPos[p.index * 4 + 1] = p.position.y;
+                    m_hPos[p.index * 4 + 2] = p.position.z;
+                    m_hPos[p.index * 4 + 3] = p.position.w;
                 }
             }
         }
     }
+    updatePosVBO();
 }
 
 void
@@ -306,14 +421,23 @@ ParticleSystem::reset(ParticleConfig config)
                     w = m_boxDims.x;
                     h = m_boxDims.y;
                     d = m_boxDims.z;
-                    m_hPos[p++] = w * frand() - w / 2;
-                    m_hPos[p++] = h * frand() - h / 2;
-                    m_hPos[p++] = d * frand() - d / 2;
-                    m_hPos[p++] = 1.0f; // radius
-                    m_hVel[v++] = 0.0f;
-                    m_hVel[v++] = 0.0f;
-                    m_hVel[v++] = 0.0f;
-                    m_hVel[v++] = 0.0f;
+                    Particle& p = m_particles.at(i);
+                    p.index = i;
+                    p.position.x = w * frand() - w / 2;
+                    p.position.y = h * frand() - h / 2;
+                    p.position.z = d * frand() - d / 2;
+                    p.position.w = 1.0f;
+                    p.velocity = { 0.f,0.f,0.f };
+                    p.force = { 0.f,0.f,0.f };
+                    float r = m_params.particleRadius;
+                    p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
+                    p.density = REST_DENSITY;
+                    p.pressure = DEFAULT_PRESSURE;
+                    p.radius = m_params.particleRadius;
+                    m_hPos[p.index * 4 + 0] = p.position.x;
+                    m_hPos[p.index * 4 + 1] = p.position.y;
+                    m_hPos[p.index * 4 + 2] = p.position.z;
+                    m_hPos[p.index * 4 + 3] = p.position.w;
                 }
             }
             break;
@@ -328,19 +452,20 @@ ParticleSystem::reset(ParticleConfig config)
             }
             break;
     }
-
-    setArray(POSITION, m_hPos, 0, m_numParticles);
-    setArray(VELOCITY, m_hVel, 0, m_numParticles);
+    updatePosVBO();
 }
 
 void
-ParticleSystem::addSphere(int start, float *pos, float *vel, int r, float spacing)
-{
+ParticleSystem::addSphere(int start, float* pos, float* vel, int r, float spacing) {
     uint index = start;
     float w, h, d;
     w = m_boxDims.x;
     h = m_boxDims.y;
     d = m_boxDims.z;
+    std::sort(m_particles.begin(), m_particles.end(),
+        [](const Particle e0, const Particle e1) {
+            return e0.index < e1.index;
+        });
 
     for (int z=-r; z<=r; z++)
     {
@@ -356,21 +481,20 @@ ParticleSystem::addSphere(int start, float *pos, float *vel, int r, float spacin
 
                 if ((l <= m_params.particleRadius*2.0f*r) && (index < m_numParticles))
                 {
-                    m_hPos[index*4]   = pos[0] + dx + (w * frand() - w / 2)*jitter;
-                    m_hPos[index*4+1] = pos[1] + dy + (h * frand() - h / 2)*jitter;
-                    m_hPos[index*4+2] = pos[2] + dz + (d * frand() - d / 2)*jitter;
-                    m_hPos[index*4+3] = pos[3];
-
-                    m_hVel[index*4]   = vel[0];
-                    m_hVel[index*4+1] = vel[1];
-                    m_hVel[index*4+2] = vel[2];
-                    m_hVel[index*4+3] = vel[3];
+                    Particle& p = m_particles.at(index);
+                    p.position.x = pos[0] + dx + (w * frand() - w / 2) * jitter;
+                    p.position.y = pos[1] + dy + (h * frand() - h / 2) * jitter;
+                    p.position.z = pos[2] + dz + (d * frand() - d / 2) * jitter;
+                    p.position.w = pos[3];
+                    m_hPos[p.index * 4 + 0] = p.position.x;
+                    m_hPos[p.index * 4 + 1] = p.position.y;
+                    m_hPos[p.index * 4 + 2] = p.position.z;
+                    m_hPos[p.index * 4 + 3] = p.position.w;
                     index++;
+
                 }
             }
         }
     }
-
-    setArray(POSITION, m_hPos, start, index);
-    setArray(VELOCITY, m_hVel, start, index);
+    updatePosVBO();
 }

@@ -14,10 +14,46 @@
 
 #define DEBUG_GRID 0
 #define DO_TIMING 0
+#define DEFAULT_MASS (1e-2f)
+#define REST_DENSITY 997.f
+#define DEFAULT_PRESSURE 0.f
+#define GRAVITY -9.81f
+#define SMOOTH_WIDTH 0.25f
+#define Kp 2000.f
+#define PI_F         3.141592654f
+#define EPS_F        0.00001f
 
 #include <helper_functions.h>
 #include "particles_kernel.cuh"
 #include "vector_functions.h"
+
+inline float norm(float3 v) { return std::sqrtf(v.x * v.x + v.y * v.y + v.z * v.z); }
+inline float3 unit(float3 v) {
+    const float n = norm(v);
+    return { v.x / n, v.y / n, v.z / n };
+}
+
+class Particle {
+public:
+    Particle() {}
+    Particle(float4 pos, float3 vel, float3 f, float rad) :
+        position(pos),
+        velocity(vel),
+        force(f),
+        mass(DEFAULT_MASS),
+        density(REST_DENSITY),
+        pressure(DEFAULT_PRESSURE),
+        radius(rad) {}
+    ~Particle() {}
+    uint index;
+    float4 position;
+    float3 velocity;
+    float3 force;
+    float mass;
+    float density;
+    float pressure;
+    float radius;
+};
 
 // Particle system class
 class ParticleSystem
@@ -41,9 +77,6 @@ class ParticleSystem
 
         void update(float deltaTime);
         void reset(ParticleConfig config);
-
-        float *getArray(ParticleArray array);
-        void   setArray(ParticleArray array, const float *data, int start, int count);
 
         int    getNumParticles() const
         {
@@ -101,19 +134,29 @@ class ParticleSystem
     protected: // methods
         ParticleSystem() {}
         uint createVBO(uint size);
+        void updatePosVBO();
 
         void _initialize(int numParticles);
         void _finalize();
 
         void initGrid(uint *size, float spacing, float jitter, uint numParticles);
+        void computeDensities();
+        void computeForces();
+        void integrate(float deltaTime);
+
+        float guass_kernel(float3 rij, float h);
+        float3 guass_kernel_gradient(float3 rij, float h);
+
+        float pressure_ideal_gas(const Particle &p);
+        float pressure_tait_eq(const Particle &p);
 
     protected: // data
         bool m_bInitialized, m_bUseOpenGL;
         uint m_numParticles;
 
         // CPU data
+        std::vector<Particle> m_particles;      // Particle datastructure
         float *m_hPos;              // particle positions
-        float *m_hVel;              // particle velocities
 
         uint   m_posVbo;            // vertex buffer object for particle positions
         uint   m_colorVBO;          // vertex buffer object for colors

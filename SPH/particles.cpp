@@ -55,8 +55,8 @@
 #define MAX_EPSILON_ERROR 5.00f
 #define THRESHOLD         0.30f
 
-#define BOX_SIZE 5.f
-#define NUM_PARTICLES   16384
+#define BOX_SIZE 2.f
+#define NUM_PARTICLES   1000
 
 const uint width = 640, height = 480;
 
@@ -87,7 +87,7 @@ uint3 gridSize;
 int numIterations = 0; // run until exit
 
 // simulation parameters
-float timestep = 0.5f;
+float timestep = 0.000005f;     // change back to something like 0.5
 float gravity = 0.0003f;
 int iterations = 1;
 int ballr = 10;
@@ -684,7 +684,7 @@ main(int argc, char **argv)
         {
             uint boxDim;
             boxDim = getCmdLineArgumentInt(argc, (const char **) argv, "box");
-            boxDims.x = boxDims.y = boxDims.z = boxDim;
+            boxDims.x = boxDims.y = boxDims.z = (float)boxDim;
         }
 
         if (checkCmdLineFlag(argc, (const char **)argv, "file"))
