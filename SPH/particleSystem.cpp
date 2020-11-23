@@ -254,7 +254,7 @@ void ParticleSystem::computeForces() {
                 while (1);
             }*/
         }
-        pi.force.y += pi.mass * GRAVITY;
+        pi.force.y += pi.density * 12000 * GRAVITY;
     }
 }
 
@@ -390,7 +390,8 @@ ParticleSystem::initGrid(uint *size, float spacing, float jitter, uint numPartic
                     p.velocity = { 0.f,0.f,0.f };
                     p.force = { 0.f,0.f,0.f };
                     float r = m_params.particleRadius;
-                    p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
+                    //p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
+                    p.mass = DEFAULT_MASS;
                     p.density = REST_DENSITY;
                     p.pressure = DEFAULT_PRESSURE;
                     p.radius = m_params.particleRadius;
@@ -430,7 +431,8 @@ ParticleSystem::reset(ParticleConfig config)
                     p.velocity = { 0.f,0.f,0.f };
                     p.force = { 0.f,0.f,0.f };
                     float r = m_params.particleRadius;
-                    p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
+                    //p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
+                    p.mass = DEFAULT_MASS;
                     p.density = REST_DENSITY;
                     p.pressure = DEFAULT_PRESSURE;
                     p.radius = m_params.particleRadius;

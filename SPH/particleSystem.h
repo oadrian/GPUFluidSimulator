@@ -14,11 +14,11 @@
 
 #define DEBUG_GRID 0
 #define DO_TIMING 0
-#define DEFAULT_MASS (1e-2f)
+#define DEFAULT_MASS 65.f
 #define REST_DENSITY 997.f
 #define DEFAULT_PRESSURE 0.f
 #define GRAVITY -9.81f
-#define SMOOTH_WIDTH 0.25f
+#define SMOOTH_WIDTH 16.f
 #define Kp 2000.f
 #define PI_F         3.141592654f
 #define EPS_F        0.00001f
