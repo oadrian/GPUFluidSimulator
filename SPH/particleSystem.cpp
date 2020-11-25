@@ -9,7 +9,7 @@
  *
  */
 
-// OpenGL Graphics includes
+ // OpenGL Graphics includes
 #define HELPERGL_EXTERN_GL_FUNC_IMPLEMENTATION
 #include <helper_gl.h>
 
@@ -39,16 +39,15 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
     m_hPos(0),
     m_boxDims(boxDims),
     m_timer(NULL),
-    m_solverIterations(1)
-{
+    m_solverIterations(1) {
     // set simulation parameters
     m_params.particleRadius = 1.0f / 64.0f;
     m_params.colliderPos = make_float3(-1.2f, -0.8f, 0.8f);
     m_params.colliderRadius = 0.2f;
     m_params.gravity = make_float3(0.0f, -0.0003f, 0.0f);
-    m_params.boxMin.x = - boxDims.x / 2;
-    m_params.boxMin.y = - boxDims.y / 2;
-    m_params.boxMin.z = - boxDims.z / 2;
+    m_params.boxMin.x = -boxDims.x / 2;
+    m_params.boxMin.y = -boxDims.y / 2;
+    m_params.boxMin.z = -boxDims.z / 2;
     m_params.boxMax.x = boxDims.x / 2;
     m_params.boxMax.y = boxDims.y / 2;
     m_params.boxMax.z = boxDims.z / 2;
@@ -56,15 +55,13 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
     _initialize(numParticles);
 }
 
-ParticleSystem::~ParticleSystem()
-{
+ParticleSystem::~ParticleSystem() {
     _finalize();
     m_numParticles = 0;
 }
 
 uint
-ParticleSystem::createVBO(uint size)
-{
+ParticleSystem::createVBO(uint size) {
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -73,14 +70,12 @@ ParticleSystem::createVBO(uint size)
     return vbo;
 }
 
-inline float lerp(float a, float b, float t)
-{
-    return a + t*(b-a);
+inline float lerp(float a, float b, float t) {
+    return a + t * (b - a);
 }
 
 // create a color ramp
-void colorRamp(float t, float *r)
-{
+void colorRamp(float t, float* r) {
     const int ncolors = 7;
     float c[ncolors][3] =
     {
@@ -92,67 +87,61 @@ void colorRamp(float t, float *r)
         { 0.0, 0.0, 1.0, },
         { 1.0, 0.0, 1.0, },
     };
-    t = t * (ncolors-1);
-    int i = (int) t;
+    t = t * (ncolors - 1);
+    int i = (int)t;
     float u = t - floor(t);
-    r[0] = lerp(c[i][0], c[i+1][0], u);
-    r[1] = lerp(c[i][1], c[i+1][1], u);
-    r[2] = lerp(c[i][2], c[i+1][2], u);
+    r[0] = lerp(c[i][0], c[i + 1][0], u);
+    r[1] = lerp(c[i][1], c[i + 1][1], u);
+    r[2] = lerp(c[i][2], c[i + 1][2], u);
 }
 
 void
-ParticleSystem::_initialize(int numParticles)
-{
+ParticleSystem::_initialize(int numParticles) {
     assert(!m_bInitialized);
 
     m_numParticles = numParticles;
 
     // allocate host storage
-    m_hPos = new float[m_numParticles*4];
-    memset(m_hPos, 0, m_numParticles*4*sizeof(float));
+    m_hPos = new float[m_numParticles * 4];
+    memset(m_hPos, 0, m_numParticles * 4 * sizeof(float));
 
     m_particles.resize(m_numParticles);
 
     // allocate GPU data
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
 
-    if (m_bUseOpenGL)
-    {
+    if (m_bUseOpenGL) {
         m_posVbo = createVBO(memSize);
     }
-    else
-    {
-        checkCudaErrors(cudaMalloc((void **)&m_cudaPosVBO, memSize)) ;
+    else {
+        checkCudaErrors(cudaMalloc((void**)&m_cudaPosVBO, memSize));
     }
 
-    if (m_bUseOpenGL)
-    {
-        m_colorVBO = createVBO(m_numParticles*4*sizeof(float));
+    if (m_bUseOpenGL) {
+        m_colorVBO = createVBO(m_numParticles * 4 * sizeof(float));
 
         // fill color buffer
         glBindBuffer(GL_ARRAY_BUFFER, m_colorVBO);
-        float *data = (float *) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        float *ptr = data;
+        float* data = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+        float* ptr = data;
 
-        for (uint i=0; i<m_numParticles; i++)
-        {
-            float t = i / (float) m_numParticles;
+        for (uint i = 0; i < m_numParticles; i++) {
+            float t = i / (float)m_numParticles;
 #if 0
-            *ptr++ = rand() / (float) RAND_MAX;
-            *ptr++ = rand() / (float) RAND_MAX;
-            *ptr++ = rand() / (float) RAND_MAX;
+            * ptr++ = rand() / (float)RAND_MAX;
+            *ptr++ = rand() / (float)RAND_MAX;
+            *ptr++ = rand() / (float)RAND_MAX;
 #else
             colorRamp(t, ptr);
-            ptr+=3;
+            ptr += 3;
 #endif
-            *ptr++ = 1.0f;
+            * ptr++ = 1.0f;
         }
 
         glUnmapBuffer(GL_ARRAY_BUFFER);
     }
-    else
-    {
-        checkCudaErrors(cudaMalloc((void **)&m_cudaColorVBO, sizeof(float)*numParticles*4));
+    else {
+        checkCudaErrors(cudaMalloc((void**)&m_cudaColorVBO, sizeof(float) * numParticles * 4));
     }
 
     sdkCreateTimer(&m_timer);
@@ -161,165 +150,158 @@ ParticleSystem::_initialize(int numParticles)
 }
 
 void
-ParticleSystem::_finalize()
-{
+ParticleSystem::_finalize() {
     assert(m_bInitialized);
 
-    delete [] m_hPos;
+    delete[] m_hPos;
     m_particles.clear();
 
-    if (m_bUseOpenGL)
-    {
-        glDeleteBuffers(1, (const GLuint *)&m_posVbo);
-        glDeleteBuffers(1, (const GLuint *)&m_colorVBO);
+    if (m_bUseOpenGL) {
+        glDeleteBuffers(1, (const GLuint*)&m_posVbo);
+        glDeleteBuffers(1, (const GLuint*)&m_colorVBO);
     }
-    else
-    {
+    else {
         checkCudaErrors(cudaFree(m_cudaPosVBO));
         checkCudaErrors(cudaFree(m_cudaColorVBO));
     }
 }
 
-// https://matthias-research.github.io/pages/publications/sca03.pdf
-// https://lucasschuermann.com/writing/implementing-sph-in-2d
-float ParticleSystem::pressure_ideal_gas(const Particle& p) {
-    return Kp* (p.density - REST_DENSITY);
-}
+//// https://matthias-research.github.io/pages/publications/sca03.pdf
+//// https://lucasschuermann.com/writing/implementing-sph-in-2d
+//float ParticleSystem::pressure_ideal_gas(const Particle& p) {
+//    return Kp* (p.density - REST_DENSITY);
+//}
+//
+//// https://cg.informatik.uni-freiburg.de/publications/2007_SCA_SPH.pdf
+//// https://en.wikipedia.org/wiki/Tait_equation
+//float ParticleSystem::pressure_tait_eq(const Particle& p) {
+//    const float cs = 88.5f;
+//    const float gamma = 7.f;
+//    const float B = (REST_DENSITY * cs * cs) / gamma;
+//    float quot = p.density / REST_DENSITY;
+//    float quot_exp_gamma = quot * quot * quot * quot * quot * quot * quot;
+//    return B * ((quot_exp_gamma) - 1.f);
+//}
 
-// https://cg.informatik.uni-freiburg.de/publications/2007_SCA_SPH.pdf
-// https://en.wikipedia.org/wiki/Tait_equation
-float ParticleSystem::pressure_tait_eq(const Particle& p) {
-    const float cs = 88.5f;
-    const float gamma = 7.f;
-    const float B = (REST_DENSITY * cs * cs) / gamma;
-    float quot = p.density / REST_DENSITY;
-    float quot_exp_gamma = quot * quot * quot * quot * quot * quot * quot;
-    return B * ((quot_exp_gamma) - 1.f);
-}
-
-float ParticleSystem::guass_kernel(float3 rij, float h) {
-    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
-    float q = norm(rij) / h;
-    if (q < 3.0f) {
-        return sigma * std::expf(-q * q);
-    }
-    else {
-        return 0.f;
-    }
-}
-
-float3 ParticleSystem::guass_kernel_gradient(float3 rij, float h) {
-    float3 grad = unit(rij);
-    float n = norm(rij);
-    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
-    float q = n / h;
-    if (n > 1e-20f && q < 3.0f) {
-        float dq = -2.0f * q * sigma * std::expf(-q * q);
-        grad.x *= dq;
-        grad.y *= dq;
-        grad.z *= dq;
-        /*if (grad.x != grad.x || grad.y != grad.y || grad.z != grad.z) {
-            float3 u = unit(rij);
-            printf("grad <%f, %f, %f>, dq %f, q %f, sigma %f, unit <%f, %f, %f>\n", grad.x, grad.y, grad.z, dq, q, sigma, u.x, u.y, u.z);
-        }*/
-        return grad;
-    }
-    else {
-        return { 0.f,0.f,0.f };
-    }
-}
+//float ParticleSystem::guass_kernel(float3 rij, float h) {
+//    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
+//    float q = norm(rij) / h;
+//    if (q < 3.0f) {
+//        return sigma * std::expf(-q * q);
+//    }
+//    else {
+//        return 0.f;
+//    }
+//}
+//
+//float3 ParticleSystem::guass_kernel_gradient(float3 rij, float h) {
+//    float3 grad = unit(rij);
+//    float n = norm(rij);
+//    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
+//    float q = n / h;
+//    if (n > 1e-20f && q < 3.0f) {
+//        float dq = -2.0f * q * sigma * std::expf(-q * q);
+//        grad.x *= dq;
+//        grad.y *= dq;
+//        grad.z *= dq;
+//        /*if (grad.x != grad.x || grad.y != grad.y || grad.z != grad.z) {
+//            float3 u = unit(rij);
+//            printf("grad <%f, %f, %f>, dq %f, q %f, sigma %f, unit <%f, %f, %f>\n", grad.x, grad.y, grad.z, dq, q, sigma, u.x, u.y, u.z);
+//        }*/
+//        return grad;
+//    }
+//    else {
+//        return { 0.f,0.f,0.f };
+//    }
+//}
 
 void ParticleSystem::computeDensities() {
-    for (Particle &pi : m_particles) {
+    const float POLY6 = 315.f / (65.f * PI_F * std::pow(m_H, 9.f));
+    for (Particle& pi : m_particles) {
         pi.density = 0.f;
-        for (Particle &pj : m_particles) {
-            float3 rij = { pi.position.x - pj.position.x, pi.position.y - pj.position.y, pi.position.z - pj.position.z };
-            pi.density += pj.mass * guass_kernel(rij, SMOOTH_WIDTH);
+        for (Particle& pj : m_particles) {
+            Vector3f rij = pj.position - pi.position;
+            float r2 = rij.squaredNorm();
+            if (r2 < HSQ) {
+                pi.density += pj.mass * POLY6 * std::pow(HSQ - r2, 3.f);
+            }
         }
-        pi.pressure = pressure_ideal_gas(pi);
+        pi.pressure = GAS_CONSTANT * (pi.density - REST_DENS);
     }
 }
 
 void ParticleSystem::computeForces() {
+    const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
+    const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
     for (Particle& pi : m_particles) {
+        Vector3f fpress = { 0.f, 0.f, 0.f };
+        Vector3f fvisc = { 0.f, 0.f, 0.f };
+        Vector3f fgrav = { 0.f, GRAVITY * 12000 * pi.density, 0.f };
         for (Particle& pj : m_particles) {
-            float3 rij = { pi.position.x - pj.position.x, pi.position.y - pj.position.y, pi.position.z - pj.position.z };
-            float3 grad = guass_kernel_gradient(rij, SMOOTH_WIDTH);
-            float k = -(pj.mass / pj.density) * 0.5f * (pi.pressure + pi.pressure);
-            pi.force.x += k * grad.x;
-            pi.force.y += k * grad.y;
-            pi.force.z += k * grad.z;
-            /*if (pi.force.x != pi.force.x || pi.force.y != pi.force.y || pi.force.z != pi.force.z) {
-                printf("force <%f, %f, %f>, k %f, grad <%f, %f, %f>", pi.force.x, pi.force.y, pi.force.z, k, grad.x, grad.y, grad.z);
-                while (1);
-            }*/
+            if (pi.index == pj.index) continue;
+            Vector3f rij = pj.position - pi.position;
+            float r = rij.norm();
+            if (r > 1e-20f && r < m_H) {
+                fpress += -rij.normalized() * pj.mass * (pi.pressure + pj.pressure) / (2.f * pj.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
+                fvisc += VISC * pj.mass * (pj.velocity - pi.velocity) / pj.density * VISC_LAP * (m_H - r);
+            }
         }
-        pi.force.y += pi.density * 12000 * GRAVITY;
+        pi.force = fpress + fvisc + fgrav;
     }
 }
 
 void ParticleSystem::integrate(float deltaTime) {
     for (Particle& p : m_particles) {
-        float3 accel;
-        accel.x = p.force.x / p.density;
-        accel.y = p.force.y / p.density;
-        accel.z = p.force.z / p.density;
-
-        p.velocity.x += deltaTime * accel.x;
-        p.velocity.y += deltaTime * accel.y;
-        p.velocity.z += deltaTime * accel.z;
-
-        p.position.x += deltaTime * p.velocity.x;
-        p.position.y += deltaTime * p.velocity.y;
-        p.position.z += deltaTime * p.velocity.z;
+        Vector3f accel = p.force / p.density;
+        p.velocity += deltaTime * accel;
+        p.position += deltaTime * p.velocity;
 
         // bounds check in X
-        if (p.position.x - EPS_F < m_params.boxMin.x) {
-            p.position.x = m_params.boxMin.x + EPS_F;
-            p.velocity.x *= -1.f;  // reverse direction
-        } 
-        if (p.position.x + EPS_F > m_params.boxMax.x) {
-            p.position.x = m_params.boxMax.x - EPS_F;
-            p.velocity.x *= -1.f;  // reverse direction
+        if (p.position.x() - EPS_F < m_params.boxMin.x) {
+            p.position.x() = m_params.boxMin.x + EPS_F;
+            p.velocity.x() *= -1.f;  // reverse direction
+        }
+        if (p.position.x() + EPS_F > m_params.boxMax.x) {
+            p.position.x() = m_params.boxMax.x - EPS_F;
+            p.velocity.x() *= -1.f;  // reverse direction
         }
 
         // bounds check in Y
-        if (p.position.y - EPS_F < m_params.boxMin.y) {
-            p.position.y = m_params.boxMin.y + EPS_F;
-            p.velocity.y *= -1.f;  // reverse direction
+        if (p.position.y() - EPS_F < m_params.boxMin.y) {
+            p.position.y() = m_params.boxMin.y + EPS_F;
+            p.velocity.y() *= -1.f;  // reverse direction
         }
-        if (p.position.y + EPS_F > m_params.boxMax.y) {
-            p.position.y = m_params.boxMax.y - EPS_F;
-            p.velocity.y *= -1.f;  // reverse direction
+        if (p.position.y() + EPS_F > m_params.boxMax.y) {
+            p.position.y() = m_params.boxMax.y - EPS_F;
+            p.velocity.y() *= -1.f;  // reverse direction
         }
 
         // bounds check in Z
-        if (p.position.z - EPS_F < m_params.boxMin.z) {
-            p.position.z = m_params.boxMin.z + EPS_F;
-            p.velocity.z *= -1.f;  // reverse direction
+        if (p.position.z() - EPS_F < m_params.boxMin.z) {
+            p.position.z() = m_params.boxMin.z + EPS_F;
+            p.velocity.z() *= -1.f;  // reverse direction
         }
-        if (p.position.z + EPS_F > m_params.boxMax.z) {
-            p.position.z = m_params.boxMax.z - EPS_F;
-            p.velocity.z *= -1.f;  // reverse direction
+        if (p.position.z() + EPS_F > m_params.boxMax.z) {
+            p.position.z() = m_params.boxMax.z - EPS_F;
+            p.velocity.z() *= -1.f;  // reverse direction
         }
 
-        m_hPos[p.index * 4 + 0] = p.position.x;
-        m_hPos[p.index * 4 + 1] = p.position.y;
-        m_hPos[p.index * 4 + 2] = p.position.z;
-        m_hPos[p.index * 4 + 3] = p.position.w;
+        m_hPos[p.index * 4 + 0] = p.position.x();
+        m_hPos[p.index * 4 + 1] = p.position.y();
+        m_hPos[p.index * 4 + 2] = p.position.z();
+        m_hPos[p.index * 4 + 3] = 1.0f;
     }
 }
 
 // step the simulation
 void
-ParticleSystem::update(float deltaTime)
-{
+ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
 
     // N^2 algorithm for calculating density for each particle, computes pressure as well
     computeDensities();
 
-    
+
     // computes pressure and gravity force contribution on each particle
     computeForces();
 
@@ -327,7 +309,7 @@ ParticleSystem::update(float deltaTime)
     integrate(deltaTime);
     /*for (uint i = 0; i < m_particles.size(); i++) {
         Particle& p = m_particles.at(i);
-        printf("particle %u mass %f, density %f, pressure %f, position <%f, %f, %f>, force <%f, %f, %f>\n", 
+        printf("particle %u mass %f, density %f, pressure %f, position <%f, %f, %f>, force <%f, %f, %f>\n",
             p.index, p.mass, p.density, p.pressure, p.position.x, p.position.y, p.position.z, p.force.x, p.force.y, p.force.z);
     }*/
 
@@ -336,14 +318,12 @@ ParticleSystem::update(float deltaTime)
 }
 
 void
-ParticleSystem::dumpParticles(uint start, uint count)
-{
+ParticleSystem::dumpParticles(uint start, uint count) {
     // debug
-    
-    for (uint i=start; i<start+count; i++)
-    {
+
+    for (uint i = start; i < start + count; i++) {
         //        printf("%d: ", i);
-        printf("pos: (%.4f, %.4f, %.4f, %.4f)\n", m_hPos[i*4+0], m_hPos[i*4+1], m_hPos[i*4+2], m_hPos[i*4+3]);
+        printf("pos: (%.4f, %.4f, %.4f, %.4f)\n", m_hPos[i * 4 + 0], m_hPos[i * 4 + 1], m_hPos[i * 4 + 2], m_hPos[i * 4 + 3]);
     }
 }
 
@@ -357,48 +337,39 @@ void ParticleSystem::updatePosVBO() {
     }
 }
 
-inline float frand()
-{
-    return rand() / (float) RAND_MAX;
+inline float frand() {
+    return rand() / (float)RAND_MAX;
 }
 
 void
-ParticleSystem::initGrid(uint *size, float spacing, float jitter, uint numParticles)
-{
+ParticleSystem::initGrid(uint* size, float spacing, float jitter, uint numParticles) {
     srand(1973);
 
-    for (uint z=0; z<size[2]; z++)
-    {
-        for (uint y=0; y<size[1]; y++)
-        {
-            for (uint x=0; x<size[0]; x++)
-            {
-                uint i = (z*size[1]*size[0]) + (y*size[0]) + x;
+    for (uint z = 0; z < size[2]; z++) {
+        for (uint y = 0; y < size[1]; y++) {
+            for (uint x = 0; x < size[0]; x++) {
+                uint i = (z * size[1] * size[0]) + (y * size[0]) + x;
 
-                if (i < numParticles)
-                {
+                if (i < numParticles) {
                     float w, h, d;
                     w = m_boxDims.x;
                     h = m_boxDims.y;
                     d = m_boxDims.z;
                     Particle& p = m_particles.at(i);
                     p.index = i;
-                    p.position.x = (spacing * x) + m_params.particleRadius + m_params.boxMin.x + (w * frand() - w / 2) * jitter;
-                    p.position.y = (spacing * y) + m_params.particleRadius + m_params.boxMin.y + (h * frand() - h / 2) * jitter;
-                    p.position.z = (spacing * z) + m_params.particleRadius + m_params.boxMin.z + (d * frand() - d / 2) * jitter;
-                    p.position.w = 1.0f;
+                    p.position = { (spacing * x) + m_params.particleRadius + m_params.boxMin.x + (w * frand() - w / 2) * jitter ,
+                                   (spacing * y) + m_params.particleRadius + m_params.boxMin.y + (h * frand() - h / 2) * jitter ,
+                                   (spacing * z) + m_params.particleRadius + m_params.boxMin.z + (d * frand() - d / 2) * jitter };
                     p.velocity = { 0.f,0.f,0.f };
                     p.force = { 0.f,0.f,0.f };
-                    float r = m_params.particleRadius;
-                    //p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
-                    p.mass = DEFAULT_MASS;
-                    p.density = REST_DENSITY;
-                    p.pressure = DEFAULT_PRESSURE;
+                    p.mass = MASS;
+                    p.density = 0.f;
+                    p.pressure = 0.f;
                     p.radius = m_params.particleRadius;
-                    m_hPos[p.index * 4 + 0] = p.position.x;
-                    m_hPos[p.index * 4 + 1] = p.position.y;
-                    m_hPos[p.index * 4 + 2] = p.position.z;
-                    m_hPos[p.index * 4 + 3] = p.position.w;
+                    m_hPos[p.index * 4 + 0] = p.position.x();
+                    m_hPos[p.index * 4 + 1] = p.position.y();
+                    m_hPos[p.index * 4 + 2] = p.position.z();
+                    m_hPos[p.index * 4 + 3] = 1.0f;
                 }
             }
         }
@@ -407,52 +378,46 @@ ParticleSystem::initGrid(uint *size, float spacing, float jitter, uint numPartic
 }
 
 void
-ParticleSystem::reset(ParticleConfig config)
-{
-    switch (config)
+ParticleSystem::reset(ParticleConfig config) {
+    switch (config) {
+    default:
+    case CONFIG_RANDOM:
     {
-        default:
-        case CONFIG_RANDOM:
-            {
-                int p = 0, v = 0;
+        int p = 0, v = 0;
 
-                for (uint i=0; i < m_numParticles; i++)
-                {
-                    float w, h, d;
-                    w = m_boxDims.x;
-                    h = m_boxDims.y;
-                    d = m_boxDims.z;
-                    Particle& p = m_particles.at(i);
-                    p.index = i;
-                    p.position.x = w * frand() - w / 2;
-                    p.position.y = h * frand() - h / 2;
-                    p.position.z = d * frand() - d / 2;
-                    p.position.w = 1.0f;
-                    p.velocity = { 0.f,0.f,0.f };
-                    p.force = { 0.f,0.f,0.f };
-                    float r = m_params.particleRadius;
-                    //p.mass = 8.f * r * r * r * REST_DENSITY * 0.9f;
-                    p.mass = DEFAULT_MASS;
-                    p.density = REST_DENSITY;
-                    p.pressure = DEFAULT_PRESSURE;
-                    p.radius = m_params.particleRadius;
-                    m_hPos[p.index * 4 + 0] = p.position.x;
-                    m_hPos[p.index * 4 + 1] = p.position.y;
-                    m_hPos[p.index * 4 + 2] = p.position.z;
-                    m_hPos[p.index * 4 + 3] = p.position.w;
-                }
-            }
-            break;
+        for (uint i = 0; i < m_numParticles; i++) {
+            float w, h, d;
+            w = m_boxDims.x;
+            h = m_boxDims.y;
+            d = m_boxDims.z;
+            Particle& p = m_particles.at(i);
+            p.index = i;
+            p.position = { w * frand() - w / 2,
+                           h * frand() - h / 2,
+                           d * frand() - d / 2 };
+            p.velocity = { 0.f,0.f,0.f };
+            p.force = { 0.f,0.f,0.f };
+            p.mass = MASS;
+            p.density = 0.f;
+            p.pressure = 0.f;
+            p.radius = m_params.particleRadius;
+            m_hPos[p.index * 4 + 0] = p.position.x();
+            m_hPos[p.index * 4 + 1] = p.position.y();
+            m_hPos[p.index * 4 + 2] = p.position.z();
+            m_hPos[p.index * 4 + 3] = 1.f;
+        }
+    }
+    break;
 
-        case CONFIG_GRID:
-            {
-                float jitter = m_params.particleRadius*0.01f;
-                uint s = (int) ceilf(powf((float) m_numParticles, 1.0f / 3.0f));
-                uint gridSize[3];
-                gridSize[0] = gridSize[1] = gridSize[2] = s;
-                initGrid(gridSize, m_params.particleRadius*2.0f, jitter, m_numParticles);
-            }
-            break;
+    case CONFIG_GRID:
+    {
+        float jitter = m_params.particleRadius * 0.01f;
+        uint s = (int)ceilf(powf((float)m_numParticles, 1.0f / 3.0f));
+        uint gridSize[3];
+        gridSize[0] = gridSize[1] = gridSize[2] = s;
+        initGrid(gridSize, m_params.particleRadius * 2.0f, jitter, m_numParticles);
+    }
+    break;
     }
     updatePosVBO();
 }
@@ -469,29 +434,24 @@ ParticleSystem::addSphere(int start, float* pos, float* vel, int r, float spacin
             return e0.index < e1.index;
         });
 
-    for (int z=-r; z<=r; z++)
-    {
-        for (int y=-r; y<=r; y++)
-        {
-            for (int x=-r; x<=r; x++)
-            {
-                float dx = x*spacing;
-                float dy = y*spacing;
-                float dz = z*spacing;
-                float l = sqrtf(dx*dx + dy*dy + dz*dz);
-                float jitter = m_params.particleRadius*0.01f;
+    for (int z = -r; z <= r; z++) {
+        for (int y = -r; y <= r; y++) {
+            for (int x = -r; x <= r; x++) {
+                float dx = x * spacing;
+                float dy = y * spacing;
+                float dz = z * spacing;
+                float l = sqrtf(dx * dx + dy * dy + dz * dz);
+                float jitter = m_params.particleRadius * 0.01f;
 
-                if ((l <= m_params.particleRadius*2.0f*r) && (index < m_numParticles))
-                {
+                if ((l <= m_params.particleRadius * 2.0f * r) && (index < m_numParticles)) {
                     Particle& p = m_particles.at(index);
-                    p.position.x = pos[0] + dx + (w * frand() - w / 2) * jitter;
-                    p.position.y = pos[1] + dy + (h * frand() - h / 2) * jitter;
-                    p.position.z = pos[2] + dz + (d * frand() - d / 2) * jitter;
-                    p.position.w = pos[3];
-                    m_hPos[p.index * 4 + 0] = p.position.x;
-                    m_hPos[p.index * 4 + 1] = p.position.y;
-                    m_hPos[p.index * 4 + 2] = p.position.z;
-                    m_hPos[p.index * 4 + 3] = p.position.w;
+                    p.position = { pos[0] + dx + (w * frand() - w / 2) * jitter,
+                                   pos[1] + dy + (h * frand() - h / 2) * jitter,
+                                   pos[2] + dz + (d * frand() - d / 2) * jitter};
+                    m_hPos[p.index * 4 + 0] = p.position.x();
+                    m_hPos[p.index * 4 + 1] = p.position.y();
+                    m_hPos[p.index * 4 + 2] = p.position.z();
+                    m_hPos[p.index * 4 + 3] = 1.f;
                     index++;
 
                 }
