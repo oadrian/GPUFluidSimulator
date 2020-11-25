@@ -166,22 +166,22 @@ ParticleSystem::_finalize() {
     }
 }
 
-//// https://matthias-research.github.io/pages/publications/sca03.pdf
-//// https://lucasschuermann.com/writing/implementing-sph-in-2d
-//float ParticleSystem::pressure_ideal_gas(const Particle& p) {
-//    return Kp* (p.density - REST_DENSITY);
-//}
-//
-//// https://cg.informatik.uni-freiburg.de/publications/2007_SCA_SPH.pdf
-//// https://en.wikipedia.org/wiki/Tait_equation
-//float ParticleSystem::pressure_tait_eq(const Particle& p) {
-//    const float cs = 88.5f;
-//    const float gamma = 7.f;
-//    const float B = (REST_DENSITY * cs * cs) / gamma;
-//    float quot = p.density / REST_DENSITY;
-//    float quot_exp_gamma = quot * quot * quot * quot * quot * quot * quot;
-//    return B * ((quot_exp_gamma) - 1.f);
-//}
+// https://matthias-research.github.io/pages/publications/sca03.pdf
+// https://lucasschuermann.com/writing/implementing-sph-in-2d
+float ParticleSystem::pressure_ideal_gas(const Particle& p) {
+    return GAS_CONSTANT* (p.density - REST_DENS);
+}
+
+// https://cg.informatik.uni-freiburg.de/publications/2007_SCA_SPH.pdf
+// https://en.wikipedia.org/wiki/Tait_equation
+float ParticleSystem::pressure_tait_eq(const Particle& p) {
+    const float cs = 88.5f;
+    const float gamma = 7.f;
+    const float B = (REST_DENS * cs * cs) / gamma;
+    float quot = p.density / REST_DENS;
+    float quot_exp_gamma = quot * quot * quot * quot * quot * quot * quot;
+    return B * ((quot_exp_gamma) - 1.f);
+}
 
 //float ParticleSystem::guass_kernel(float3 rij, float h) {
 //    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
@@ -220,13 +220,13 @@ void ParticleSystem::computeDensities() {
     for (Particle& pi : m_particles) {
         pi.density = 0.f;
         for (Particle& pj : m_particles) {
-            Vector3f rij = pj.position - pi.position;
+            Vector3f rij = pi.position - pj.position;
             float r2 = rij.squaredNorm();
             if (r2 < HSQ) {
                 pi.density += pj.mass * POLY6 * std::pow(HSQ - r2, 3.f);
             }
         }
-        pi.pressure = GAS_CONSTANT * (pi.density - REST_DENS);
+        pi.pressure = pressure_ideal_gas(pi);
     }
 }
 
@@ -239,9 +239,9 @@ void ParticleSystem::computeForces() {
         Vector3f fgrav = { 0.f, GRAVITY * 12000 * pi.density, 0.f };
         for (Particle& pj : m_particles) {
             if (pi.index == pj.index) continue;
-            Vector3f rij = pj.position - pi.position;
+            Vector3f rij = pi.position - pj.position;
             float r = rij.norm();
-            if (r > 1e-20f && r < m_H) {
+            if (r < m_H) {
                 fpress += -rij.normalized() * pj.mass * (pi.pressure + pj.pressure) / (2.f * pj.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
                 fvisc += VISC * pj.mass * (pj.velocity - pi.velocity) / pj.density * VISC_LAP * (m_H - r);
             }

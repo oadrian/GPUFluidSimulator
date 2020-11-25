@@ -87,7 +87,7 @@ uint3 gridSize;
 int numIterations = 0; // run until exit
 
 // simulation parameters
-float timestep = 0.0005f;     // change back to something like 0.5
+float timestep = 0.00005f;     // change back to something like 0.5
 float gravity = 0.0003f;
 int iterations = 1;
 int ballr = 10;

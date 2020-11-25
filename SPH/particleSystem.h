@@ -14,7 +14,7 @@
 
 #define REST_DENS 1000.f
 #define GAS_CONSTANT 2000.f
-#define m_H 16.f
+#define m_H 0.2f
 #define HSQ m_H * m_H
 #define MASS 65.f
 #define VISC 250.f
