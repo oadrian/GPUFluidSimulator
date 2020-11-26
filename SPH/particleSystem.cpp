@@ -226,7 +226,7 @@ void ParticleSystem::computeDensities() {
                 pi.density += pj.mass * POLY6 * std::pow(HSQ - r2, 3.f);
             }
         }
-        pi.pressure = pressure_ideal_gas(pi);
+        pi.pressure = std::max(0.f, pressure_ideal_gas(pi));
     }
 }
 
@@ -236,7 +236,7 @@ void ParticleSystem::computeForces() {
     for (Particle& pi : m_particles) {
         Vector3f fpress = { 0.f, 0.f, 0.f };
         Vector3f fvisc = { 0.f, 0.f, 0.f };
-        Vector3f fgrav = { 0.f, GRAVITY * 12000 * pi.density, 0.f };
+        Vector3f fgrav = { 0.f, GRAVITY * 11000 * pi.density, 0.f };
         for (Particle& pj : m_particles) {
             if (pi.index == pj.index) continue;
             Vector3f rij = pi.position - pj.position;
@@ -298,20 +298,22 @@ void
 ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
 
-    // N^2 algorithm for calculating density for each particle, computes pressure as well
-    computeDensities();
+    for (int iter = 0; iter < m_solverIterations; iter++) {
+        // N^2 algorithm for calculating density for each particle, computes pressure as well
+        computeDensities();
 
 
-    // computes pressure and gravity force contribution on each particle
-    computeForces();
+        // computes pressure and gravity force contribution on each particle
+        computeForces();
 
-    // integrates velocity and position based on forces
-    integrate(deltaTime);
-    /*for (uint i = 0; i < m_particles.size(); i++) {
-        Particle& p = m_particles.at(i);
-        printf("particle %u mass %f, density %f, pressure %f, position <%f, %f, %f>, force <%f, %f, %f>\n",
-            p.index, p.mass, p.density, p.pressure, p.position.x, p.position.y, p.position.z, p.force.x, p.force.y, p.force.z);
-    }*/
+        // integrates velocity and position based on forces
+        integrate(deltaTime);
+        /*for (uint i = 0; i < m_particles.size(); i++) {
+            Particle& p = m_particles.at(i);
+            printf("particle %u mass %f, density %f, pressure %f, position <%f, %f, %f>, force <%f, %f, %f>\n",
+                p.index, p.mass, p.density, p.pressure, p.position.x, p.position.y, p.position.z, p.force.x, p.force.y, p.force.z);
+        }*/
+    }
 
     // update the vertex buffer object
     updatePosVBO();
