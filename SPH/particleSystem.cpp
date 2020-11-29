@@ -217,6 +217,7 @@ float ParticleSystem::pressure_tait_eq(const Particle& p) {
 
 void ParticleSystem::computeDensities() {
     const float POLY6 = 315.f / (65.f * PI_F * std::pow(m_H, 9.f));
+
     for (Particle& pi : m_particles) {
         pi.density = 0.f;
         for (Particle& pj : m_particles) {
@@ -259,31 +260,31 @@ void ParticleSystem::integrate(float deltaTime) {
         // bounds check in X
         if (p.position.x() - EPS_F < m_params.boxMin.x) {
             p.position.x() = m_params.boxMin.x + EPS_F;
-            p.velocity.x() *= -1.f;  // reverse direction
+            p.velocity.x() *= -.75f;  // reverse direction
         }
         if (p.position.x() + EPS_F > m_params.boxMax.x) {
             p.position.x() = m_params.boxMax.x - EPS_F;
-            p.velocity.x() *= -1.f;  // reverse direction
+            p.velocity.x() *= -.75f;  // reverse direction
         }
 
         // bounds check in Y
         if (p.position.y() - EPS_F < m_params.boxMin.y) {
             p.position.y() = m_params.boxMin.y + EPS_F;
-            p.velocity.y() *= -1.f;  // reverse direction
+            p.velocity.y() *= -.75f;  // reverse direction
         }
         if (p.position.y() + EPS_F > m_params.boxMax.y) {
             p.position.y() = m_params.boxMax.y - EPS_F;
-            p.velocity.y() *= -1.f;  // reverse direction
+            p.velocity.y() *= -.75f;  // reverse direction
         }
 
         // bounds check in Z
         if (p.position.z() - EPS_F < m_params.boxMin.z) {
             p.position.z() = m_params.boxMin.z + EPS_F;
-            p.velocity.z() *= -1.f;  // reverse direction
+            p.velocity.z() *= -.75f;  // reverse direction
         }
         if (p.position.z() + EPS_F > m_params.boxMax.z) {
             p.position.z() = m_params.boxMax.z - EPS_F;
-            p.velocity.z() *= -1.f;  // reverse direction
+            p.velocity.z() *= -.75f;  // reverse direction
         }
 
         m_hPos[p.index * 4 + 0] = p.position.x();
@@ -293,15 +294,63 @@ void ParticleSystem::integrate(float deltaTime) {
     }
 }
 
+unsigned long long ParticleSystem::get_Z_index(Particle p) {
+    // find the section of the grid the particle is in
+    float posX = p.position.x() - m_params.boxMin.x;
+    float posY = p.position.y() - m_params.boxMin.y;
+    float posZ = p.position.z() - m_params.boxMin.z;
+    uint x_grid = floor((posX / m_boxDims.x) * m_z_grid_dim);
+    uint y_grid = floor((posY / m_boxDims.y) * m_z_grid_dim);
+    uint z_grid = floor((posZ / m_boxDims.z) * m_z_grid_dim);
+    
+    // interleave the grid indices to find the final z-index
+    // x bits
+    x_grid = (x_grid | (x_grid << 16)) & 0x030000FF;
+    x_grid = (x_grid | (x_grid << 8)) & 0x0300F00F;
+    x_grid = (x_grid | (x_grid << 4)) & 0x030C30C3;
+    x_grid = (x_grid | (x_grid << 2)) & 0x09249249;
+    // y bits
+    y_grid = (y_grid | (y_grid << 16)) & 0x030000FF;
+    y_grid = (y_grid | (y_grid << 8)) & 0x0300F00F;
+    y_grid = (y_grid | (y_grid << 4)) & 0x030C30C3;
+    y_grid = (y_grid | (y_grid << 2)) & 0x09249249;
+    // z bits
+    z_grid = (z_grid | (z_grid << 16)) & 0x030000FF;
+    z_grid = (z_grid | (z_grid << 8)) & 0x0300F00F;
+    z_grid = (z_grid | (z_grid << 4)) & 0x030C30C3;
+    z_grid = (z_grid | (z_grid << 2)) & 0x09249249;
+
+    return x_grid | (y_grid << 1) | (z_grid << 2);
+}
+
+
+bool cmpParticles(Particle pi, Particle pj) {
+    return (pi.zindex < pj.zindex);
+}
+
+void ParticleSystem::constructGridArray() {
+    printf("Grid dim: %d\n", m_z_grid_dim);
+    for (Particle& p : m_particles) {
+        p.zindex = get_Z_index(p);
+        printf("Particle %d is in z index %d\n", p.index, p.zindex);
+
+    }
+    // sort the particles vector according to the z index
+    std::sort(m_particles.begin(), m_particles.end(), cmpParticles);
+}
+
+
 // step the simulation
 void
 ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
 
     for (int iter = 0; iter < m_solverIterations; iter++) {
+        // place particles into their grid indices and sort particles according to cell indices
+        constructGridArray();
+
         // N^2 algorithm for calculating density for each particle, computes pressure as well
         computeDensities();
-
 
         // computes pressure and gravity force contribution on each particle
         computeForces();

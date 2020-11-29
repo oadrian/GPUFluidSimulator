@@ -55,8 +55,8 @@
 #define MAX_EPSILON_ERROR 5.00f
 #define THRESHOLD         0.30f
 
-#define BOX_SIZE 0.5f
-#define NUM_PARTICLES   1000
+#define BOX_SIZE 0.9f
+#define NUM_PARTICLES   15
 
 const uint width = 640, height = 480;
 
