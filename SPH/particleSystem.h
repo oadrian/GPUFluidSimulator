@@ -21,7 +21,7 @@
 #define GRAVITY -9.81f
 #define PI_F         3.141592654f
 #define EPS_F        0.00001f
-#define Z_GRID_DIM 4
+#define Z_GRID_DIM 8
 
 #include <helper_functions.h>
 #include "particles_kernel.cuh"
@@ -54,6 +54,11 @@ public:
     // z-index sorting
     unsigned long long zindex; //sort by zindex each time step
 };
+
+typedef struct Grid_item {
+    uint nParticles;
+    uint start;
+} Grid_item;
 
 // Particle system class
 class ParticleSystem {
@@ -136,6 +141,8 @@ protected: // methods
     void computeForces();
     void integrate(float deltaTime);
 
+    void zcomputeDensities();
+    void zcomputeForces();
     unsigned long long get_Z_index(Particle p);
     void constructGridArray();
 
@@ -153,7 +160,7 @@ protected: // data
     std::vector<Particle> m_particles;      // Particle datastructure
     short    m_z_grid_dim = Z_GRID_DIM; // dimension of the z-index grid
     uint  m_z_grid_size = Z_GRID_DIM * Z_GRID_DIM * Z_GRID_DIM; // size of the z-index grid
-    unsigned long long m_z_grid[Z_GRID_DIM * Z_GRID_DIM * Z_GRID_DIM];     // z-indexing grid array
+    Grid_item m_z_grid[Z_GRID_DIM * Z_GRID_DIM * Z_GRID_DIM];     // z-indexing grid array
     float* m_hPos;              // particle positions
 
     uint   m_posVbo;            // vertex buffer object for particle positions

@@ -56,7 +56,7 @@
 #define THRESHOLD         0.30f
 
 #define BOX_SIZE 0.9f
-#define NUM_PARTICLES   15
+#define NUM_PARTICLES   100
 
 const uint width = 640, height = 480;
 

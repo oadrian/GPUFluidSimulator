@@ -231,6 +231,28 @@ void ParticleSystem::computeDensities() {
     }
 }
 
+void ParticleSystem::zcomputeDensities() {
+    const float POLY6 = 315.f / (65.f * PI_F * std::pow(m_H, 9.f));
+    // loop through each grid block, and for each only compute using its particles
+    for (int i = 0; i < m_z_grid_size; i++) {
+        int num_particles = m_z_grid[i].nParticles;
+        if (num_particles > 0) {
+            int start = m_z_grid[i].start;
+            for (int j = start; j < start + m_z_grid[i].nParticles; j++) {
+                Particle& pj = m_particles[j];
+                pj.density = 0.f;
+                for (int k = start; k < start + m_z_grid[i].nParticles; k++) {
+                    Particle& pk = m_particles[k];
+                    Vector3f rij = pj.position - pk.position;
+                    float r2 = rij.squaredNorm();
+                    pj.density += pk.mass * POLY6 * std::pow(HSQ - r2, 3.f);
+                }
+                pj.pressure = std::max(0.f, pressure_ideal_gas(pj));
+            }
+        }
+    }
+}
+
 void ParticleSystem::computeForces() {
     const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
     const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
@@ -248,6 +270,33 @@ void ParticleSystem::computeForces() {
             }
         }
         pi.force = fpress + fvisc + fgrav;
+    }
+}
+
+void ParticleSystem::zcomputeForces() {
+    const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
+    const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
+    // loop through each grid block, and for each only compute using its particles
+    for (int i = 0; i < m_z_grid_size; i++) {
+        int num_particles = m_z_grid[i].nParticles;
+        if (num_particles > 0) {
+            int start = m_z_grid[i].start;
+            for (int j = start; j < start + m_z_grid[i].nParticles; j++) {
+                Particle& pj = m_particles[j];
+                Vector3f fpress = { 0.f, 0.f, 0.f };
+                Vector3f fvisc = { 0.f, 0.f, 0.f };
+                Vector3f fgrav = { 0.f, GRAVITY * 11000 * pj.density, 0.f };
+                for (int k = start; k < start + m_z_grid[i].nParticles; k++) {
+                    Particle& pk = m_particles[k];
+                    if (pj.index == pk.index) continue;
+                    Vector3f rij = pj.position - pk.position;
+                    float r = rij.norm();
+                    fpress += -rij.normalized() * pk.mass * (pj.pressure + pk.pressure) / (2.f * pk.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
+                    fvisc += VISC * pk.mass * (pk.velocity - pj.velocity) / pk.density * VISC_LAP * (m_H - r);
+                }
+                pj.force = fpress + fvisc + fgrav;
+            }
+        }
     }
 }
 
@@ -329,14 +378,33 @@ bool cmpParticles(Particle pi, Particle pj) {
 }
 
 void ParticleSystem::constructGridArray() {
-    printf("Grid dim: %d\n", m_z_grid_dim);
+    // set each particle's z-index
     for (Particle& p : m_particles) {
         p.zindex = get_Z_index(p);
-        printf("Particle %d is in z index %d\n", p.index, p.zindex);
-
     }
     // sort the particles vector according to the z index
     std::sort(m_particles.begin(), m_particles.end(), cmpParticles);
+    // clear prev grid array
+    std::memset(&m_z_grid, 0, sizeof(m_z_grid));
+    // set the grid array where each item has the starting index into the particles
+    // vector and the number of particles that block in the grid contains
+    long long grid_dex = -1;
+    for (int i = 0; i < m_particles.size(); i++) {
+        Particle p = m_particles[i];
+        //printf("p is at zindex %d\n", p.zindex);
+        unsigned long long zind = p.zindex;
+        if (zind != grid_dex) {
+            // found a new block of particles
+            grid_dex = zind;
+            m_z_grid[grid_dex].start = i;
+            m_z_grid[grid_dex].nParticles = 1;
+            //printf("Found a new block at %d\n", i);  
+        }
+        else {
+            m_z_grid[grid_dex].nParticles++; // still in same block, increment particles
+            //printf("Incremented %d to %d particles\n", grid_dex, m_z_grid[grid_dex].nParticles);
+        }
+    }
 }
 
 
@@ -350,10 +418,10 @@ ParticleSystem::update(float deltaTime) {
         constructGridArray();
 
         // N^2 algorithm for calculating density for each particle, computes pressure as well
-        computeDensities();
+        zcomputeDensities();
 
         // computes pressure and gravity force contribution on each particle
-        computeForces();
+        zcomputeForces();
 
         // integrates velocity and position based on forces
         integrate(deltaTime);
