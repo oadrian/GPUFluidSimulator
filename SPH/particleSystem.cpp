@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <algorithm>
+#include <omp.h>
 
 #ifndef CUDART_PI_F
 #define CUDART_PI_F         3.141592654f
@@ -234,6 +235,7 @@ void ParticleSystem::computeDensities() {
 void ParticleSystem::zcomputeDensities() {
     const float POLY6 = 315.f / (65.f * PI_F * std::pow(m_H, 9.f));
     // loop through each grid block, and for each only compute using its particles
+#pragma omp parallel for schedule(static, 8)
     for (int i = 0; i < m_z_grid_size; i++) {
         int num_particles = m_z_grid[i].nParticles;
         if (num_particles > 0) {
@@ -277,6 +279,7 @@ void ParticleSystem::zcomputeForces() {
     const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
     const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
     // loop through each grid block, and for each only compute using its particles
+#pragma omp parallel for schedule(static, 8)
     for (int i = 0; i < m_z_grid_size; i++) {
         int num_particles = m_z_grid[i].nParticles;
         if (num_particles > 0) {
@@ -302,7 +305,9 @@ void ParticleSystem::zcomputeForces() {
 
 void ParticleSystem::particleCollisions() {
     // detect collisions
-    for (Particle& pi : m_particles) {
+#pragma omp parallel for schedule(static, 64)
+    for(int i = 0; i < m_particles.size(); i++) {
+        Particle& pi = m_particles[i];
         pi.delta_velocity = { 0.f, 0.f, 0.f };
         pi.collision_count = 0;
         for (Particle& pj : m_particles) {
@@ -350,7 +355,9 @@ void ParticleSystem::zparticleCollisions() {
 }
 
 void ParticleSystem::integrate(float deltaTime) {
-    for (Particle& p : m_particles) {
+#pragma omp parallel for schedule(static, 64)
+    for (int i = 0; i < m_particles.size(); i++) {
+        Particle& p = m_particles[i];
         Vector3f accel = p.force / p.density;
         p.velocity += deltaTime * accel + p.delta_velocity; 
         p.position += deltaTime * p.velocity;
@@ -461,7 +468,7 @@ void ParticleSystem::constructGridArray() {
 void
 ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
-
+    omp_set_num_threads(omp_get_max_threads());
     for (int iter = 0; iter < m_solverIterations; iter++) {
         // place particles into their grid indices and sort particles according to cell indices
         constructGridArray();
