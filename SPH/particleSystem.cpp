@@ -300,10 +300,59 @@ void ParticleSystem::zcomputeForces() {
     }
 }
 
+void ParticleSystem::particleCollisions() {
+    // detect collisions
+    for (Particle& pi : m_particles) {
+        pi.delta_velocity = { 0.f, 0.f, 0.f };
+        pi.collision_count = 0;
+        for (Particle& pj : m_particles) {
+            Vector3f vij, rij;
+            float dij;
+            vij = pi.velocity - pj.velocity;
+            rij = pi.position - pj.position;
+            dij = rij.norm();
+            if (dij <= COLLISION_PARAM * 2 * pi.radius && rij.dot(vij) < 0) {
+                pi.delta_velocity += (pj.mass * (1.f + RESTITUTION)) * (rij.dot(vij) / (dij *dij)) * rij;
+                pi.collision_count++;
+            }
+        }
+        pi.delta_velocity = -pi.delta_velocity / (pi.mass * (1 + pi.collision_count));
+    }
+}
+
+void ParticleSystem::zparticleCollisions() {
+    // detect collisions
+    for (int i = 0; i < m_z_grid_size; i++) {
+        int num_particles = m_z_grid[i].nParticles;
+        if (num_particles > 0) {
+            int start = m_z_grid[i].start;
+            for (int j = start; j < start + m_z_grid[i].nParticles; j++) {
+                Particle& pj = m_particles[j];
+                pj.delta_velocity = { 0.f, 0.f, 0.f };
+                pj.collision_count = 0;
+                for (int k = start; k < start + m_z_grid[i].nParticles; k++) {
+                    Particle& pk = m_particles[k];
+                    if (pj.index == pk.index) continue;
+                    Vector3f vjk, rjk;
+                    float djk;
+                    vjk = pj.velocity - pk.velocity;
+                    rjk = pj.position - pk.position;
+                    djk = rjk.norm();
+                    if (djk <= COLLISION_PARAM * 2 * pj.radius && rjk.dot(vjk) < 0) {
+                        pj.delta_velocity += (pk.mass * (1.f + RESTITUTION)) * (rjk.dot(vjk) / (djk * djk)) * rjk;
+                        pj.collision_count++;
+                    }
+                }
+                pj.delta_velocity = -pj.delta_velocity / (pj.mass * (1 + pj.collision_count));
+            }
+        }
+    }
+}
+
 void ParticleSystem::integrate(float deltaTime) {
     for (Particle& p : m_particles) {
         Vector3f accel = p.force / p.density;
-        p.velocity += deltaTime * accel;
+        p.velocity += deltaTime * accel + p.delta_velocity; 
         p.position += deltaTime * p.velocity;
 
         // bounds check in X
@@ -422,6 +471,9 @@ ParticleSystem::update(float deltaTime) {
 
         // computes pressure and gravity force contribution on each particle
         zcomputeForces();
+
+        // find particle collisions
+        particleCollisions();
 
         // integrates velocity and position based on forces
         integrate(deltaTime);

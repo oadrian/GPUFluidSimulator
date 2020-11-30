@@ -22,6 +22,8 @@
 #define PI_F         3.141592654f
 #define EPS_F        0.00001f
 #define Z_GRID_DIM 8
+#define RESTITUTION 0.f
+#define COLLISION_PARAM 1.0
 
 #include <helper_functions.h>
 #include "particles_kernel.cuh"
@@ -45,11 +47,13 @@ public:
     uint index;
     Vector3f position;
     Vector3f velocity;
+    Vector3f delta_velocity;
     Vector3f force;
     float mass;
     float density;
     float pressure;
     float radius;
+    int collision_count;
 
     // z-index sorting
     unsigned long long zindex; //sort by zindex each time step
@@ -139,10 +143,12 @@ protected: // methods
     void initGrid(uint* size, float spacing, float jitter, uint numParticles);
     void computeDensities();
     void computeForces();
+    void particleCollisions();
     void integrate(float deltaTime);
 
     void zcomputeDensities();
     void zcomputeForces();
+    void zparticleCollisions();
     unsigned long long get_Z_index(Particle p);
     void constructGridArray();
 

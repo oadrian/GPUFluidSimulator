@@ -55,8 +55,8 @@
 #define MAX_EPSILON_ERROR 5.00f
 #define THRESHOLD         0.30f
 
-#define BOX_SIZE 0.9f
-#define NUM_PARTICLES   100
+#define BOX_SIZE 0.5f
+#define NUM_PARTICLES   1000
 
 const uint width = 640, height = 480;
 
@@ -87,9 +87,9 @@ uint3 gridSize;
 int numIterations = 0; // run until exit
 
 // simulation parameters
-float timestep = 0.00005f;     // change back to something like 0.5
+float timestep = 0.0000005f;     // change back to something like 0.5
 float gravity = 0.0003f;
-int iterations = 1;
+int iterations = 4;
 int ballr = 10;
 
 ParticleSystem *psystem = 0;
@@ -592,11 +592,11 @@ void special(int k, int x, int y)
 
 void idle(void)
 {
-    if ((idleCounter++ > idleDelay) && (demoMode==false))
+    /*if ((idleCounter++ > idleDelay) && (demoMode==false))
     {
         demoMode = true;
         printf("Entering demo mode\n");
-    }
+    }*/
 
     if (demoMode)
     {
