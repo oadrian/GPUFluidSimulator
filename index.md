@@ -6,4 +6,4 @@ Developed by Logan Kojiro and Oscar A Ramirez Poulat in the Fall Semester of 202
 
 <a href="checkpoint"> Checkpoint </a>
 
-<a href="sched"> Schedule </a>
+<a href="schedule"> Schedule </a>
