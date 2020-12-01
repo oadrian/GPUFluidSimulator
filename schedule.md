@@ -25,17 +25,22 @@
 * Added Z-indexing sorting
 * Added OpenMP support for bottleneck for loops
 
-### Week 5 12/2 - 12/09
-* Write GPU kernels for velocity and position integration
-* Write GPU kernels for force calculations
-* Write GPU kernels for density and pressure calculations
-* Debug particle collisions using OpenMP
-* Parameter tweaking
+### Week 5.0 12/2 - 12/05
+* Debug particle collisions using OpenMP - Oscar
+* Write GPU kernels for density and pressure calculations - Logan
 
-### Week 6 12/09 - 12/16
-* Implement GPU kernel for z-index sorting of particles
-* Testing
-* Parameter tweaking
-* Data gathering
-* Prepare final report and presentation
-* If time allows create a couple demo scenarios
+### Week 5.5 12/05 - 12/09
+* Write GPU kernels for force calculations - Oscar
+* Write GPU kernels for velocity and position integration - Logan
+* Parameter tweaking - Oscar
+
+### Week 6.0 12/09 - 12/12
+* Implement GPU kernel for z-index sorting of particles - Logan
+* Improve OpenMP load balancing - Oscar
+* Testing - Oscar
+
+### Week 6.5 12/12 - 12/15
+* Parameter tweaking - Logan
+* Data gathering - Oscar
+* Create demo scenes - Both
+* Prepare final report and presentation - Both
