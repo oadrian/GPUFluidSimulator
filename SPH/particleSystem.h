@@ -19,6 +19,7 @@
 #define MASS 65.f
 #define VISC 250.f
 #define GRAVITY -9.81f
+#define G_MODIFIER 11000
 #define PI_F         3.141592654f
 #define EPS_F        0.00001f
 #define Z_GRID_DIM 8
