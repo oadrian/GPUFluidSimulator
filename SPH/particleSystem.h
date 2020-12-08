@@ -11,10 +11,10 @@
 
 #ifndef __PARTICLESYSTEM_H__
 #define __PARTICLESYSTEM_H__
-#define DEBUG
+//#define DEBUG
 #define REST_DENS 1000.f
 #define GAS_CONSTANT 2000.f
-#define m_H 0.2f
+#define m_H 0.1f
 #define HSQ m_H * m_H
 #define MASS 65.f
 #define VISC 250.f
@@ -26,11 +26,11 @@
 #define COLLISION_PARAM 1.0
 #define BOX_SIZE 1.f
 #ifdef DEBUG
-#define NUM_PARTICLES   300
-#else
 #define NUM_PARTICLES   1000
+#else
+#define NUM_PARTICLES   5000
 #endif // DEBUG
-
+#define CHUNK 4
 
 
 #include <helper_functions.h>
@@ -182,7 +182,7 @@ protected: // methods
     void computeForce(Particle& pi, const Particle& pj, Vector3f& fpress, Vector3f& fvisc);
     void computeCollision(Particle& pi, const Particle& pj);
 
-
+    std::vector<uint> getNeighbors(uint z_index);
 protected: // data
     bool m_bInitialized, m_bUseOpenGL;
     uint m_numParticles;

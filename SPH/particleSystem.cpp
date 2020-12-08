@@ -254,6 +254,26 @@ void ParticleSystem::computeCollision(Particle& pi, const Particle& pj) {
     }
 }
 
+std::vector<uint> ParticleSystem::getNeighbors(uint z_index) {
+    std::vector<uint> neighbors;
+    Vector3i coords = zIndex2coord(z_index);
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                int x = coords.x() + dx;
+                int y = coords.y() + dy;
+                int z = coords.z() + dz;
+                if (0 <= x && x < m_z_grid_dim &&
+                    0 <= y && y < m_z_grid_dim &&
+                    0 <= z && z < m_z_grid_dim) {
+                    neighbors.push_back(coord2zIndex(Vector3i({ x,y,z })));
+                }
+            }
+        }
+    }
+    return neighbors;
+}
+
 void ParticleSystem::computeDensities() {
     for (Particle& pi : m_particles) {
         pi.density = 0.f;
@@ -266,7 +286,23 @@ void ParticleSystem::computeDensities() {
 
 void ParticleSystem::zcomputeDensities() {
     // loop through each grid block, and for each only compute using its particles
-
+#pragma omp parallel for schedule(static, CHUNK)
+    for (int block = 0; block < m_z_grid_size; block++) {
+        if (m_z_grid[block].nParticles == 0) continue;
+        for (int i = m_z_grid[block].start; i < m_z_grid[block].start + m_z_grid[block].nParticles; i++) {
+            Particle& pi = m_particles[i];
+            std::vector<uint> neighbors = getNeighbors(block);
+            pi.density = 0.f;
+            for (uint neighbor : neighbors) {
+                if (m_z_grid[neighbor].nParticles == 0) continue;
+                for (int j = m_z_grid[neighbor].start; j < m_z_grid[neighbor].start + m_z_grid[neighbor].nParticles; j++) {
+                    Particle& pj = m_particles[j];
+                    computeDensity(pi, pj);
+                }
+            }
+            computePressureIdeal(pi);
+        }
+    }
 }
 
 void ParticleSystem::computeForces() {
@@ -275,7 +311,6 @@ void ParticleSystem::computeForces() {
         Vector3f fvisc = { 0.f, 0.f, 0.f };
         Vector3f fgrav = { 0.f, GRAVITY * G_MODIFIER * pi.density, 0.f };
         for (Particle& pj : m_particles) {
-            if (pi.index == pj.index) continue;
             computeForce(pi, pj, fpress, fvisc);
         }
         pi.force = fpress + fvisc + fgrav;
@@ -283,7 +318,25 @@ void ParticleSystem::computeForces() {
 }
 
 void ParticleSystem::zcomputeForces() {
-
+#pragma omp parallel for schedule(static, CHUNK)
+    for (int block = 0; block < m_z_grid_size; block++) {
+        if (m_z_grid[block].nParticles == 0) continue;
+        for (int i = m_z_grid[block].start; i < m_z_grid[block].start + m_z_grid[block].nParticles; i++) {
+            Particle& pi = m_particles[i];
+            std::vector<uint> neighbors = getNeighbors(block);
+            Vector3f fpress = { 0.f, 0.f, 0.f };
+            Vector3f fvisc = { 0.f, 0.f, 0.f };
+            Vector3f fgrav = { 0.f, GRAVITY * G_MODIFIER * pi.density, 0.f };
+            for (uint neighbor : neighbors) {
+                if (m_z_grid[neighbor].nParticles == 0) continue;
+                for (int j = m_z_grid[neighbor].start; j < m_z_grid[neighbor].start + m_z_grid[neighbor].nParticles; j++) {
+                    Particle& pj = m_particles[j];
+                    computeForce(pi, pj, fpress, fvisc);
+                }
+            }
+            pi.force = fpress + fvisc + fgrav;
+        }
+    }
 }
 
 void ParticleSystem::particleCollisions() {
@@ -293,6 +346,7 @@ void ParticleSystem::particleCollisions() {
         pi.delta_velocity = { 0.f, 0.f, 0.f };
         pi.collision_count = 0;
         for (Particle& pj : m_particles) {
+            if (pi.index == pj.index) continue;
             computeCollision(pi, pj);
         }
         pi.delta_velocity = -pi.delta_velocity / (pi.mass * (1 + pi.collision_count));
@@ -301,7 +355,25 @@ void ParticleSystem::particleCollisions() {
 
 void ParticleSystem::zparticleCollisions() {
     // detect collisions
-
+#pragma omp parallel for schedule(static, CHUNK)
+    for (int block = 0; block < m_z_grid_size; block++) {
+        if (m_z_grid[block].nParticles == 0) continue;
+        for (int i = m_z_grid[block].start; i < m_z_grid[block].start + m_z_grid[block].nParticles; i++) {
+            Particle& pi = m_particles[i];
+            std::vector<uint> neighbors = getNeighbors(block);
+            pi.delta_velocity = { 0.f, 0.f, 0.f };
+            pi.collision_count = 0;
+            for (uint neighbor : neighbors) {
+                if (m_z_grid[neighbor].nParticles == 0) continue;
+                for (int j = m_z_grid[neighbor].start; j < m_z_grid[neighbor].start + m_z_grid[neighbor].nParticles; j++) {
+                    Particle& pj = m_particles[j];
+                    if (pi.index == pj.index) continue;
+                    computeCollision(pi, pj);
+                }
+            }
+            pi.delta_velocity = -pi.delta_velocity / (pi.mass * (1 + pi.collision_count));
+        }
+    }
 }
 
 void ParticleSystem::integrate(float deltaTime) {
@@ -418,7 +490,7 @@ void ParticleSystem::constructGridArray() {
     // sort the particles vector according to the z index
     std::sort(m_particles.begin(), m_particles.end(), cmpParticles);
     // clear prev grid array
-    std::memset(&m_z_grid, 0, sizeof(m_z_grid));
+    std::memset(m_z_grid, 0, m_z_grid_size * sizeof(Grid_item));
     // set the grid array where each item has the starting index into the particles
     // vector and the number of particles that block in the grid contains
     long long grid_dex = -1;
@@ -469,15 +541,10 @@ ParticleSystem::update(float deltaTime) {
         zcomputeForces();
 
         // find particle collisions
-        //zparticleCollisions();
+        zparticleCollisions();
 
         // integrates velocity and position based on forces
         integrate(deltaTime);
-        /*for (uint i = 0; i < m_particles.size(); i++) {
-            Particle& p = m_particles.at(i);
-            printf("particle %u mass %f, density %f, pressure %f, position <%f, %f, %f>, force <%f, %f, %f>\n",
-                p.index, p.mass, p.density, p.pressure, p.position.x, p.position.y, p.position.z, p.force.x, p.force.y, p.force.z);
-        }*/
 #endif // DEBUG
     }
 
