@@ -13,6 +13,8 @@
 #define PARTICLES_KERNEL_H
 
 #include "vector_types.h"
+#include "Eigen/Dense"
+using namespace Eigen;
 typedef unsigned int uint;
 
 // simulation parameters
@@ -26,6 +28,20 @@ struct SimParams
 
     float3 boxMin;
     float3 boxMax;
+};
+
+struct Particle {
+    uint index;
+    Vector3f position;
+    Vector3f velocity;
+    Vector3f delta_velocity;
+    Vector3f force;
+    float mass;
+    float density;
+    float pressure;
+    float radius;
+    int collision_count;
+    uint zindex;
 };
 
 #endif

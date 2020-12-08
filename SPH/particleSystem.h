@@ -50,34 +50,6 @@ static const uint nextPow2(uint x) {
     return x;
 }
 
-class Particle {
-public:
-    Particle() {}
-    Particle(Vector3f pos, Vector3f vel, Vector3f f, float rad) :
-        position(pos),
-        velocity(vel),
-        force(f),
-        mass(MASS),
-        density(REST_DENS),
-        pressure(0.f),
-        radius(rad) {
-    }
-    ~Particle() {}
-    uint index;
-    Vector3f position;
-    Vector3f velocity;
-    Vector3f delta_velocity;
-    Vector3f force;
-    float mass;
-    float density;
-    float pressure;
-    float radius;
-    int collision_count;
-
-    // z-index sorting
-    unsigned long long zindex; //sort by zindex each time step
-};
-
 typedef struct Grid_item {
     uint nParticles;
     uint start;
