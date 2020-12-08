@@ -243,12 +243,29 @@ void ParticleSystem::zcomputeDensities() {
             for (int j = start; j < start + m_z_grid[i].nParticles; j++) {
                 Particle& pj = m_particles[j];
                 pj.density = 0.f;
-                for (int k = start; k < start + m_z_grid[i].nParticles; k++) {
-                    Particle& pk = m_particles[k];
-                    Vector3f rij = pj.position - pk.position;
-                    float r2 = rij.squaredNorm();
-                    pj.density += pk.mass * POLY6 * std::pow(HSQ - r2, 3.f);
+                // loop through all the particles in each adjacent grid square
+                dim3 grid_coords = get_coordinates(pj);
+                int px = grid_coords.x;
+                int py = grid_coords.y;
+                int pz = grid_coords.z;
+                // from px-1 to px+1
+                for (int grid_x = max(0, px - 1); grid_x <= min(grid_x + 1, m_z_grid_size - 1); grid_x++ {
+                    // from py-1 to py+1
+                    for (int grid_y = max(0, py - 1); grid_y <= min(grid_y + 1, m_z_grid_size - 1); grid_y++ {
+                        // from pz-1 to pz+1
+                        for (int grid_z = max(0, pz - 1); grid_z <= min(grid_z + 1, m_z_grid_size - 1); grid_z++ {
+                            unsigned long long zdex = z_index_from_coordinates(grid_x, grid_y, grid_z);
+                            int adjacent_start = m_z_grid[zdex].start;
+                            for (int k = adjacent_start; k < adjacent_start + m_z_grid[zdex].nParticles; k++) {
+                                Particle& pk = m_particles[k];
+                                Vector3f rij = pj.position - pk.position;
+                                float r2 = rij.squaredNorm();
+                                pj.density += pk.mass * POLY6 * std::pow(HSQ - r2, 3.f);
+                            }
+                        }
+                    }
                 }
+                
                 pj.pressure = std::max(0.f, pressure_ideal_gas(pj));
             }
         }
@@ -405,16 +422,23 @@ void ParticleSystem::integrate(float deltaTime) {
         m_hPos[p.index * 4 + 3] = 1.0f;
     }
 }
-
-unsigned long long ParticleSystem::get_Z_index(Particle p) {
-    // find the section of the grid the particle is in
+dim3 ParticleSystem::get_coordinates(Particle p) {
     float posX = p.position.x() - m_params.boxMin.x;
     float posY = p.position.y() - m_params.boxMin.y;
     float posZ = p.position.z() - m_params.boxMin.z;
-    uint x_grid = floor((posX / m_boxDims.x) * m_z_grid_dim);
-    uint y_grid = floor((posY / m_boxDims.y) * m_z_grid_dim);
-    uint z_grid = floor((posZ / m_boxDims.z) * m_z_grid_dim);
-    
+
+    uint x_grid - floor((posX / m_boxDims.x) * m_z_grid_dim);
+    uint y_grid - floor((posY / m_boxDims.y) * m_z_grid_dim);
+    uint z_grid - floor((posZ / m_boxDims.z) * m_z_grid_dim);
+
+    dim3 result;
+    result.x = x_grid;
+    result.y = y_grid;
+    result.z = z_grid;
+    return result;
+}
+
+unsigned long long z_index_from_coordiantes(int x_grid, int y_grid, int z_grid) {
     // interleave the grid indices to find the final z-index
     // x bits
     x_grid = (x_grid | (x_grid << 16)) & 0x030000FF;
@@ -433,6 +457,19 @@ unsigned long long ParticleSystem::get_Z_index(Particle p) {
     z_grid = (z_grid | (z_grid << 2)) & 0x09249249;
 
     return x_grid | (y_grid << 1) | (z_grid << 2);
+}
+
+unsigned long long ParticleSystem::get_Z_index(Particle p) {
+    // find the section of the grid the particle is in
+    float posX = p.position.x() - m_params.boxMin.x;
+    float posY = p.position.y() - m_params.boxMin.y;
+    float posZ = p.position.z() - m_params.boxMin.z;
+    uint x_grid = floor((posX / m_boxDims.x) * m_z_grid_dim);
+    uint y_grid = floor((posY / m_boxDims.y) * m_z_grid_dim);
+    uint z_grid = floor((posZ / m_boxDims.z) * m_z_grid_dim);
+    
+
+    return z_index_from_coorinates(x_grid, y_grid, z_grid);
 }
 
 

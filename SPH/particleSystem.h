@@ -147,6 +147,8 @@ protected: // methods
     void particleCollisions();
     void integrate(float deltaTime);
 
+    dim3 get_coordinates(Particle p);
+
     void zcomputeDensities();
     void zcomputeForces();
     void zparticleCollisions();
