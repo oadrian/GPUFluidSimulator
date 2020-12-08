@@ -11,7 +11,7 @@
 
 #ifndef __PARTICLESYSTEM_H__
 #define __PARTICLESYSTEM_H__
-
+#define DEBUG
 #define REST_DENS 1000.f
 #define GAS_CONSTANT 2000.f
 #define m_H 0.2f
@@ -22,15 +22,33 @@
 #define G_MODIFIER 11000
 #define PI_F         3.141592654f
 #define EPS_F        0.00001f
-#define Z_GRID_DIM 8
 #define RESTITUTION 0.f
 #define COLLISION_PARAM 1.0
+#define BOX_SIZE 1.f
+#ifdef DEBUG
+#define NUM_PARTICLES   300
+#else
+#define NUM_PARTICLES   1000
+#endif // DEBUG
+
+
 
 #include <helper_functions.h>
 #include "particles_kernel.cuh"
 #include "vector_functions.h"
 #include "Eigen/Dense"
 using namespace Eigen;
+
+static const uint nextPow2(uint x) {
+    x--;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x++;
+    return x;
+}
 
 class Particle {
 public:
@@ -150,14 +168,20 @@ protected: // methods
     void zcomputeDensities();
     void zcomputeForces();
     void zparticleCollisions();
-    unsigned long long get_Z_index(Particle p);
+    uint coord2zIndex(Vector3i coord);
+    Vector3i zIndex2coord(uint z_index);
+    uint get_Z_index(Particle p);
     void constructGridArray();
 
     float guass_kernel(Vector3f rij, float h);
     Vector3f guass_kernel_gradient(Vector3f rij, float h);
 
-    float pressure_ideal_gas(const Particle& p);
-    float pressure_tait_eq(const Particle& p);
+    void computePressureIdeal(Particle& p);
+    void computePressureTait(Particle& p);
+    void computeDensity(Particle& pi, const Particle& pj);
+    void computeForce(Particle& pi, const Particle& pj, Vector3f& fpress, Vector3f& fvisc);
+    void computeCollision(Particle& pi, const Particle& pj);
+
 
 protected: // data
     bool m_bInitialized, m_bUseOpenGL;
@@ -165,9 +189,9 @@ protected: // data
 
     // CPU data
     std::vector<Particle> m_particles;      // Particle datastructure
-    short    m_z_grid_dim = Z_GRID_DIM; // dimension of the z-index grid
-    uint  m_z_grid_size = Z_GRID_DIM * Z_GRID_DIM * Z_GRID_DIM; // size of the z-index grid
-    Grid_item m_z_grid[Z_GRID_DIM * Z_GRID_DIM * Z_GRID_DIM];     // z-indexing grid array
+    uint    m_z_grid_dim;       // dimension of the z-index grid
+    uint  m_z_grid_size;        // size of the z-index grid
+    Grid_item *m_z_grid;        // z-indexing grid array
     float* m_hPos;              // particle positions
 
     uint   m_posVbo;            // vertex buffer object for particle positions

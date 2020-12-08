@@ -41,6 +41,11 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
     m_boxDims(boxDims),
     m_timer(NULL),
     m_solverIterations(1) {
+    // initialize grid
+    m_z_grid_dim = nextPow2((uint)(BOX_SIZE / (0.66666f * m_H)));
+    m_z_grid_size = m_z_grid_dim * m_z_grid_dim * m_z_grid_dim;
+    m_z_grid = new Grid_item[m_z_grid_size];
+
     // set simulation parameters
     m_params.particleRadius = 1.0f / 64.0f;
     m_params.colliderPos = make_float3(-1.2f, -0.8f, 0.8f);
@@ -59,6 +64,7 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
 ParticleSystem::~ParticleSystem() {
     _finalize();
     m_numParticles = 0;
+    delete[] m_z_grid;
 }
 
 uint
@@ -167,23 +173,6 @@ ParticleSystem::_finalize() {
     }
 }
 
-// https://matthias-research.github.io/pages/publications/sca03.pdf
-// https://lucasschuermann.com/writing/implementing-sph-in-2d
-float ParticleSystem::pressure_ideal_gas(const Particle& p) {
-    return GAS_CONSTANT* (p.density - REST_DENS);
-}
-
-// https://cg.informatik.uni-freiburg.de/publications/2007_SCA_SPH.pdf
-// https://en.wikipedia.org/wiki/Tait_equation
-float ParticleSystem::pressure_tait_eq(const Particle& p) {
-    const float cs = 88.5f;
-    const float gamma = 7.f;
-    const float B = (REST_DENS * cs * cs) / gamma;
-    float quot = p.density / REST_DENS;
-    float quot_exp_gamma = quot * quot * quot * quot * quot * quot * quot;
-    return B * ((quot_exp_gamma) - 1.f);
-}
-
 //float ParticleSystem::guass_kernel(float3 rij, float h) {
 //    float sigma = 1.f / (std::pow(PI_F, 1.5f) * h * h * h);
 //    float q = norm(rij) / h;
@@ -216,110 +205,95 @@ float ParticleSystem::pressure_tait_eq(const Particle& p) {
 //    }
 //}
 
-void ParticleSystem::computeDensities() {
-    const float POLY6 = 315.f / (65.f * PI_F * std::pow(m_H, 9.f));
+// https://matthias-research.github.io/pages/publications/sca03.pdf
+// https://lucasschuermann.com/writing/implementing-sph-in-2d
+void ParticleSystem::computePressureIdeal(Particle& p) {
+    p.pressure = std::max(0.f, GAS_CONSTANT * (p.density - REST_DENS));
+}
 
+// https://cg.informatik.uni-freiburg.de/publications/2007_SCA_SPH.pdf
+// https://en.wikipedia.org/wiki/Tait_equation
+void ParticleSystem::computePressureTait(Particle& p) {
+    const float cs = 88.5f;
+    const float gamma = 7.f;
+    const float B = (REST_DENS * cs * cs) / gamma;
+    float quot = p.density / REST_DENS;
+    float quot_exp_gamma = quot * quot * quot * quot * quot * quot * quot;
+    p.pressure = B * ((quot_exp_gamma)-1.f);
+}
+
+void ParticleSystem::computeDensity(Particle& pi, const Particle& pj) {
+    const float POLY6 = 315.f / (65.f * PI_F * std::pow(m_H, 9.f));
+    Vector3f rij = pi.position - pj.position;
+    float r2 = rij.squaredNorm();
+    if (r2 < HSQ) {
+        pi.density += pj.mass * POLY6 * std::pow(HSQ - r2, 3.f);
+    }
+}
+
+void ParticleSystem::computeForce(Particle& pi, const Particle& pj, Vector3f& fpress, Vector3f& fvisc) {
+    const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
+    const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
+    Vector3f rij = pi.position - pj.position;
+    float r = rij.norm();
+    if (r < m_H) {
+        fpress += -rij.normalized() * pj.mass * (pi.pressure + pj.pressure) / (2.f * pj.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
+        fvisc += VISC * pj.mass * (pj.velocity - pi.velocity) / pj.density * VISC_LAP * (m_H - r);
+    }
+}
+
+void ParticleSystem::computeCollision(Particle& pi, const Particle& pj) {
+    Vector3f vij, rij;
+    float dij;
+    vij = pi.velocity - pj.velocity;
+    rij = pi.position - pj.position;
+    dij = rij.norm();
+    if (dij <= COLLISION_PARAM * 2 * pi.radius && rij.dot(vij) < 0) {
+        pi.delta_velocity += (pj.mass * (1.f + RESTITUTION)) * (rij.dot(vij) / (dij * dij)) * rij;
+        pi.collision_count++;
+    }
+}
+
+void ParticleSystem::computeDensities() {
     for (Particle& pi : m_particles) {
         pi.density = 0.f;
         for (Particle& pj : m_particles) {
-            Vector3f rij = pi.position - pj.position;
-            float r2 = rij.squaredNorm();
-            if (r2 < HSQ) {
-                pi.density += pj.mass * POLY6 * std::pow(HSQ - r2, 3.f);
-            }
+            computeDensity(pi, pj);
         }
-        pi.pressure = std::max(0.f, pressure_ideal_gas(pi));
+        computePressureIdeal(pi);
     }
 }
 
 void ParticleSystem::zcomputeDensities() {
-    const float POLY6 = 315.f / (65.f * PI_F * std::pow(m_H, 9.f));
     // loop through each grid block, and for each only compute using its particles
-#pragma omp parallel for schedule(static, 8)
-    for (int i = 0; i < m_z_grid_size; i++) {
-        int num_particles = m_z_grid[i].nParticles;
-        if (num_particles > 0) {
-            int start = m_z_grid[i].start;
-            for (int j = start; j < start + m_z_grid[i].nParticles; j++) {
-                Particle& pj = m_particles[j];
-                pj.density = 0.f;
-                for (int k = start; k < start + m_z_grid[i].nParticles; k++) {
-                    Particle& pk = m_particles[k];
-                    Vector3f rij = pj.position - pk.position;
-                    float r2 = rij.squaredNorm();
-                    pj.density += pk.mass * POLY6 * std::pow(HSQ - r2, 3.f);
-                }
-                pj.pressure = std::max(0.f, pressure_ideal_gas(pj));
-            }
-        }
-    }
+
 }
 
 void ParticleSystem::computeForces() {
-    const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
-    const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
     for (Particle& pi : m_particles) {
         Vector3f fpress = { 0.f, 0.f, 0.f };
         Vector3f fvisc = { 0.f, 0.f, 0.f };
         Vector3f fgrav = { 0.f, GRAVITY * G_MODIFIER * pi.density, 0.f };
         for (Particle& pj : m_particles) {
             if (pi.index == pj.index) continue;
-            Vector3f rij = pi.position - pj.position;
-            float r = rij.norm();
-            if (r < m_H) {
-                fpress += -rij.normalized() * pj.mass * (pi.pressure + pj.pressure) / (2.f * pj.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
-                fvisc += VISC * pj.mass * (pj.velocity - pi.velocity) / pj.density * VISC_LAP * (m_H - r);
-            }
+            computeForce(pi, pj, fpress, fvisc);
         }
         pi.force = fpress + fvisc + fgrav;
     }
 }
 
 void ParticleSystem::zcomputeForces() {
-    const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
-    const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
-    // loop through each grid block, and for each only compute using its particles
-#pragma omp parallel for schedule(static, 8)
-    for (int i = 0; i < m_z_grid_size; i++) {
-        int num_particles = m_z_grid[i].nParticles;
-        if (num_particles > 0) {
-            int start = m_z_grid[i].start;
-            for (int j = start; j < start + m_z_grid[i].nParticles; j++) {
-                Particle& pj = m_particles[j];
-                Vector3f fpress = { 0.f, 0.f, 0.f };
-                Vector3f fvisc = { 0.f, 0.f, 0.f };
-                Vector3f fgrav = { 0.f, GRAVITY * 11000 * pj.density, 0.f };
-                for (int k = start; k < start + m_z_grid[i].nParticles; k++) {
-                    Particle& pk = m_particles[k];
-                    if (pj.index == pk.index) continue;
-                    Vector3f rij = pj.position - pk.position;
-                    float r = rij.norm();
-                    fpress += -rij.normalized() * pk.mass * (pj.pressure + pk.pressure) / (2.f * pk.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
-                    fvisc += VISC * pk.mass * (pk.velocity - pj.velocity) / pk.density * VISC_LAP * (m_H - r);
-                }
-                pj.force = fpress + fvisc + fgrav;
-            }
-        }
-    }
+
 }
 
 void ParticleSystem::particleCollisions() {
     // detect collisions
-#pragma omp parallel for schedule(static, 64)
     for(int i = 0; i < m_particles.size(); i++) {
         Particle& pi = m_particles[i];
         pi.delta_velocity = { 0.f, 0.f, 0.f };
         pi.collision_count = 0;
         for (Particle& pj : m_particles) {
-            Vector3f vij, rij;
-            float dij;
-            vij = pi.velocity - pj.velocity;
-            rij = pi.position - pj.position;
-            dij = rij.norm();
-            if (dij <= COLLISION_PARAM * 2 * pi.radius && rij.dot(vij) < 0) {
-                pi.delta_velocity += (pj.mass * (1.f + RESTITUTION)) * (rij.dot(vij) / (dij *dij)) * rij;
-                pi.collision_count++;
-            }
+            computeCollision(pi, pj);
         }
         pi.delta_velocity = -pi.delta_velocity / (pi.mass * (1 + pi.collision_count));
     }
@@ -327,38 +301,7 @@ void ParticleSystem::particleCollisions() {
 
 void ParticleSystem::zparticleCollisions() {
     // detect collisions
-    int S = 4;
-    int n_chunk_size = S * S * S;
-    for (int n_chunk_base = 0; n_chunk_base < m_z_grid_size; n_chunk_base += n_chunk_size) {
-        int start = -1;
-        int num_particles = 0;
-        for (int idx = n_chunk_base; idx < n_chunk_base + n_chunk_size;  idx++) {
-            if (m_z_grid[idx].nParticles > 0 && start == -1) start = m_z_grid[idx].start;
-            num_particles += m_z_grid[idx].nParticles;
-        }
 
-        if (num_particles > 0) {
-            int end = start + num_particles;
-            for (int i = start; i < end; i++) {
-                Particle& pi = m_particles[i];
-                pi.delta_velocity = { 0.f, 0.f, 0.f };
-                pi.collision_count = 0;
-                for (int j = start; j < end; j++) {
-                    Particle& pj = m_particles[j];
-                    Vector3f vij, rij;
-                    float dij;
-                    vij = pi.velocity - pj.velocity;
-                    rij = pi.position - pj.position;
-                    dij = rij.norm();
-                    if (dij <= COLLISION_PARAM * 2 * pi.radius && rij.dot(vij) < 0) {
-                        pi.delta_velocity += (pj.mass * (1.f + RESTITUTION)) * (rij.dot(vij) / (dij * dij)) * rij;
-                        pi.collision_count++;
-                    }
-                }
-                pi.delta_velocity = -pi.delta_velocity / (pi.mass * (1 + pi.collision_count));
-            }
-        }
-    }
 }
 
 void ParticleSystem::integrate(float deltaTime) {
@@ -406,17 +349,14 @@ void ParticleSystem::integrate(float deltaTime) {
     }
 }
 
-unsigned long long ParticleSystem::get_Z_index(Particle p) {
-    // find the section of the grid the particle is in
-    float posX = p.position.x() - m_params.boxMin.x;
-    float posY = p.position.y() - m_params.boxMin.y;
-    float posZ = p.position.z() - m_params.boxMin.z;
-    uint x_grid = floor((posX / m_boxDims.x) * m_z_grid_dim);
-    uint y_grid = floor((posY / m_boxDims.y) * m_z_grid_dim);
-    uint z_grid = floor((posZ / m_boxDims.z) * m_z_grid_dim);
-    
+// coord components must be 10 bits 
+uint ParticleSystem::coord2zIndex(Vector3i coord) {
+    uint x_grid = coord.x();
+    uint y_grid = coord.y();
+    uint z_grid = coord.z();
+
     // interleave the grid indices to find the final z-index
-    // x bits
+   // x bits
     x_grid = (x_grid | (x_grid << 16)) & 0x030000FF;
     x_grid = (x_grid | (x_grid << 8)) & 0x0300F00F;
     x_grid = (x_grid | (x_grid << 4)) & 0x030C30C3;
@@ -433,6 +373,36 @@ unsigned long long ParticleSystem::get_Z_index(Particle p) {
     z_grid = (z_grid | (z_grid << 2)) & 0x09249249;
 
     return x_grid | (y_grid << 1) | (z_grid << 2);
+}
+
+// 30  bit number -> 10 bit number
+uint collapseEvery3(uint x) {
+    uint res = 0;
+    for (int i = 0; i < 10; i++) {
+        uint b = ((x >> i * 3) & 1);
+        res = res | (b << i); 
+    }
+    return res;
+}
+
+Vector3i ParticleSystem::zIndex2coord(uint z_index) {
+    uint x = collapseEvery3(z_index);
+    uint y = collapseEvery3(z_index >> 1);
+    uint z = collapseEvery3(z_index >> 2);
+    return Vector3i(x, y, z);
+}
+
+uint ParticleSystem::get_Z_index(Particle p) {
+    // find the section of the grid the particle is in
+    float posX = p.position.x() - m_params.boxMin.x;
+    float posY = p.position.y() - m_params.boxMin.y;
+    float posZ = p.position.z() - m_params.boxMin.z;
+    Vector3i coord;
+    coord.x() = floor((posX / m_boxDims.x) * m_z_grid_dim);
+    coord.y() = floor((posY / m_boxDims.y) * m_z_grid_dim);
+    coord.z() = floor((posZ / m_boxDims.z) * m_z_grid_dim);
+    
+    return coord2zIndex(coord);
 }
 
 
@@ -476,7 +446,19 @@ void
 ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
     omp_set_num_threads(omp_get_max_threads());
+    //std::cout << coord2zIndex({ 0, 1, 2 }) << std::endl;
+    //std::cout << zIndex2coord(34) << std::endl;
     for (int iter = 0; iter < m_solverIterations; iter++) {
+
+#ifdef DEBUG
+        computeDensities();
+
+        computeForces();
+
+        particleCollisions();
+
+        integrate(deltaTime);
+#else
         // place particles into their grid indices and sort particles according to cell indices
         constructGridArray();
 
@@ -487,7 +469,7 @@ ParticleSystem::update(float deltaTime) {
         zcomputeForces();
 
         // find particle collisions
-        zparticleCollisions();
+        //zparticleCollisions();
 
         // integrates velocity and position based on forces
         integrate(deltaTime);
@@ -496,6 +478,7 @@ ParticleSystem::update(float deltaTime) {
             printf("particle %u mass %f, density %f, pressure %f, position <%f, %f, %f>, force <%f, %f, %f>\n",
                 p.index, p.mass, p.density, p.pressure, p.position.x, p.position.y, p.position.z, p.force.x, p.force.y, p.force.z);
         }*/
+#endif // DEBUG
     }
 
     // update the vertex buffer object
