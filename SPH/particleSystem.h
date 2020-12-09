@@ -29,7 +29,7 @@
 #ifdef DEBUG
 #define NUM_PARTICLES   1000
 #else
-#define NUM_PARTICLES   5000
+#define NUM_PARTICLES   1000
 #endif // DEBUG
 #define CHUNK 4
 
@@ -50,11 +50,6 @@ static const uint nextPow2(uint x) {
     x++;
     return x;
 }
-
-typedef struct Grid_item {
-    uint nParticles;
-    uint start;
-} Grid_item;
 
 // Particle system class
 class ParticleSystem {
@@ -165,10 +160,14 @@ protected: // data
     uint    m_z_grid_dim;       // dimension of the z-index grid
     uint  m_z_grid_size;        // size of the z-index grid
     Grid_item *m_z_grid;        // z-indexing grid array
+    uint m_z_grid_prime_size;   // size of the compact z-index grid array
+    Grid_item* m_z_grid_prime;  // compact z-indexing grid array
     float* m_hPos;              // particle positions
 
     // GPU data
     Particle* m_d_particles;    // GPU device particles datastructure
+    Grid_item* m_d_B;           // GPU device full grid datastructure
+    Grid_item* m_d_B_prime;     // GPU device compact grid datastructure
     uint   m_posVbo;            // vertex buffer object for particle positions
     uint   m_colorVBO;          // vertex buffer object for colors
 

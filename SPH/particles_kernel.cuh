@@ -17,6 +17,8 @@
 using namespace Eigen;
 typedef unsigned int uint;
 
+#define GRID_COMPACT_WIDTH 32u
+
 // simulation parameters
 struct SimParams
 {
@@ -42,6 +44,11 @@ struct Particle {
     float radius;
     int collision_count;
     uint zindex;
+};
+
+struct Grid_item {
+    uint nParticles;
+    uint start;
 };
 
 #endif

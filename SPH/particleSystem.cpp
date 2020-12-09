@@ -516,8 +516,34 @@ void ParticleSystem::constructGridArray() {
             //printf("Incremented %d to %d particles\n", grid_dex, m_z_grid[grid_dex].nParticles);
         }
     }
+
+    // compact z_grid
+    std::vector<Grid_item> grid;
+    for (int i = 0; i < m_z_grid_size; i++) {
+        uint iter = 0;
+        while (iter < m_z_grid[i].nParticles) {
+            Grid_item gi;
+            gi.start = iter + m_z_grid[i].start;
+            gi.nParticles = std::min(GRID_COMPACT_WIDTH, m_z_grid[i].nParticles - iter);
+            grid.push_back(gi);
+            iter += GRID_COMPACT_WIDTH;
+        }
+    }
+    m_z_grid_prime_size = grid.size() * sizeof(Grid_item);
+    m_z_grid_prime = new Grid_item[m_z_grid_prime_size];
+    std::memcpy((void*)m_z_grid_prime, grid.data(), m_z_grid_prime_size);
 }
 
+void printZGrid(Grid_item *m_z_grid, Grid_item *m_z_grid_prime) {
+    printf("\ngrid item array \n");
+    for (int i = 0; i < 10; i++) {
+        printf("i:%d,start:%u,size:%u;    ", i, m_z_grid[i].start, m_z_grid[i].nParticles);
+    }
+    printf("\ngrid item prime array\n");
+    for (int i = 0; i < 10; i++) {
+        printf("i:%d,start:%u,size:%u;    ", i, m_z_grid_prime[i].start, m_z_grid_prime[i].nParticles);
+    }
+}
 
 // step the simulation
 void
