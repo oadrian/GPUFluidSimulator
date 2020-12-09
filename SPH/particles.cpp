@@ -111,7 +111,7 @@ char        *g_refFile = NULL;
 
 const char *sSDKsample = "CUDA Particles Simulation";
 
-extern "C" void cudaGLInit(int argc, char **argv);
+extern "C" void cudaInit(int argc, char** argv);
 
 // initialize particle system
 void initParticleSystem(int numParticles, float3 boxDims, bool bUseOpenGL)
@@ -706,7 +706,7 @@ main(int argc, char **argv)
     if (benchmark || g_refFile)
     {
         // uncomment this line when ready for cuda implementation
-        //cudaInit(argc, argv);  
+        cudaInit(argc, argv);  
     }
     else
     {
@@ -722,7 +722,7 @@ main(int argc, char **argv)
 
         initGL(&argc, argv);
         // uncomment this line when ready for cuda implementation
-        //cudaInit(argc, argv);
+        cudaInit(argc, argv);
     }
 
     initParticleSystem(numParticles, boxDims, !benchmark && g_refFile==NULL);

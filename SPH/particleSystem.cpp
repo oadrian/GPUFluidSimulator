@@ -15,6 +15,7 @@
 
 #include "particleSystem.h"
 #include "particles_kernel.cuh"
+#include "particleSystem.cuh"
 
 #include <cuda_runtime.h>
 
@@ -121,7 +122,7 @@ ParticleSystem::_initialize(int numParticles) {
         m_posVbo = createVBO(memSize);
     }
     else {
-        checkCudaErrors(cudaMalloc((void**)&m_cudaPosVBO, memSize));
+        allocateArray((void**)&m_cudaPosVBO, memSize);
     }
 
     if (m_bUseOpenGL) {
@@ -148,7 +149,7 @@ ParticleSystem::_initialize(int numParticles) {
         glUnmapBuffer(GL_ARRAY_BUFFER);
     }
     else {
-        checkCudaErrors(cudaMalloc((void**)&m_cudaColorVBO, sizeof(float) * numParticles * 4));
+        allocateArray((void**)&m_cudaColorVBO, sizeof(float) * numParticles * 4);
     }
 
     sdkCreateTimer(&m_timer);
@@ -168,8 +169,8 @@ ParticleSystem::_finalize() {
         glDeleteBuffers(1, (const GLuint*)&m_colorVBO);
     }
     else {
-        checkCudaErrors(cudaFree(m_cudaPosVBO));
-        checkCudaErrors(cudaFree(m_cudaColorVBO));
+        freeArray(m_cudaPosVBO);
+        freeArray(m_cudaColorVBO);
     }
 }
 
