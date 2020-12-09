@@ -13,19 +13,6 @@
 #define __PARTICLESYSTEM_H__
 //#define DEBUG
 //#define CPU_IMPL
-#define REST_DENS 1000.f
-#define GAS_CONSTANT 2000.f
-#define m_H 0.1f
-#define HSQ m_H * m_H
-#define MASS 65.f
-#define VISC 250.f
-#define GRAVITY -9.81f
-#define G_MODIFIER 11000
-#define PI_F         3.141592654f
-#define EPS_F        0.00001f
-#define RESTITUTION 0.f
-#define COLLISION_PARAM 1.0
-#define BOX_SIZE 1.f
 #ifdef DEBUG
 #define NUM_PARTICLES   1000
 #else
@@ -147,7 +134,7 @@ protected: // methods
     void computePressureIdeal(Particle& p);
     void computePressureTait(Particle& p);
     void computeDensity(Particle& pi, const Particle& pj);
-    void computeForce(Particle& pi, const Particle& pj, Vector3f& fpress, Vector3f& fvisc);
+    void computeForce(Particle& pi, const Particle& pj);
     void computeCollision(Particle& pi, const Particle& pj);
 
     std::vector<uint> getNeighbors(uint z_index);

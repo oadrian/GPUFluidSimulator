@@ -237,14 +237,14 @@ void ParticleSystem::computeDensity(Particle& pi, const Particle& pj) {
     }
 }
 
-void ParticleSystem::computeForce(Particle& pi, const Particle& pj, Vector3f& fpress, Vector3f& fvisc) {
+void ParticleSystem::computeForce(Particle& pi, const Particle& pj) {
     const float SPIKY_GRAD = -45.f / (PI_F * std::pow(m_H, 6.f));
     const float VISC_LAP = 45.f / (PI_F * std::pow(m_H, 6.f));
     Vector3f rij = pi.position - pj.position;
     float r = rij.norm();
     if (r < m_H) {
-        fpress += -rij.normalized() * pj.mass * (pi.pressure + pj.pressure) / (2.f * pj.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
-        fvisc += VISC * pj.mass * (pj.velocity - pi.velocity) / pj.density * VISC_LAP * (m_H - r);
+        pi.force_press += -rij.normalized() * pj.mass * (pi.pressure + pj.pressure) / (2.f * pj.density) * SPIKY_GRAD * std::pow(m_H - r, 2.f);
+        pi.force_visc += VISC * pj.mass * (pj.velocity - pi.velocity) / pj.density * VISC_LAP * (m_H - r);
     }
 }
 
@@ -313,13 +313,11 @@ void ParticleSystem::zcomputeDensities() {
 
 void ParticleSystem::computeForces() {
     for (Particle& pi : m_particles) {
-        Vector3f fpress = { 0.f, 0.f, 0.f };
-        Vector3f fvisc = { 0.f, 0.f, 0.f };
-        Vector3f fgrav = { 0.f, GRAVITY * G_MODIFIER * pi.density, 0.f };
+        pi.force_press = { 0.f, 0.f, 0.f };
+        pi.force_visc = { 0.f, 0.f, 0.f };
         for (Particle& pj : m_particles) {
-            computeForce(pi, pj, fpress, fvisc);
+            computeForce(pi, pj);
         }
-        pi.force = fpress + fvisc + fgrav;
     }
 }
 
@@ -330,17 +328,15 @@ void ParticleSystem::zcomputeForces() {
         for (int i = m_z_grid[block].start; i < m_z_grid[block].start + m_z_grid[block].nParticles; i++) {
             Particle& pi = m_particles[i];
             std::vector<uint> neighbors = getNeighbors(block);
-            Vector3f fpress = { 0.f, 0.f, 0.f };
-            Vector3f fvisc = { 0.f, 0.f, 0.f };
-            Vector3f fgrav = { 0.f, GRAVITY * G_MODIFIER * pi.density, 0.f };
+            pi.force_press = { 0.f, 0.f, 0.f };
+            pi.force_visc = { 0.f, 0.f, 0.f };
             for (uint neighbor : neighbors) {
                 if (m_z_grid[neighbor].nParticles == 0) continue;
                 for (int j = m_z_grid[neighbor].start; j < m_z_grid[neighbor].start + m_z_grid[neighbor].nParticles; j++) {
                     Particle& pj = m_particles[j];
-                    computeForce(pi, pj, fpress, fvisc);
+                    computeForce(pi, pj);
                 }
             }
-            pi.force = fpress + fvisc + fgrav;
         }
     }
 }
@@ -386,7 +382,9 @@ void ParticleSystem::integrate(float deltaTime) {
 #pragma omp parallel for schedule(static, 64)
     for (int i = 0; i < m_particles.size(); i++) {
         Particle& p = m_particles[i];
-        Vector3f accel = p.force / p.density;
+        Vector3f force_grav = { 0.f, GRAVITY * G_MODIFIER * p.density, 0.f };
+        Vector3f force = p.force_press + p.force_visc + force_grav;
+        Vector3f accel = force / p.density;
         p.velocity += deltaTime * accel + p.delta_velocity; 
         p.position += deltaTime * p.velocity;
 
@@ -648,7 +646,8 @@ ParticleSystem::initGrid(uint* size, float spacing, float jitter, uint numPartic
                                    (spacing * y) + m_params.particleRadius + m_params.boxMin.y + (h * frand() - h / 2) * jitter ,
                                    (spacing * z) + m_params.particleRadius + m_params.boxMin.z + (d * frand() - d / 2) * jitter };
                     p.velocity = { 0.f,0.f,0.f };
-                    p.force = { 0.f,0.f,0.f };
+                    p.force_press = { 0.f,0.f,0.f };
+                    p.force_visc = { 0.f,0.f,0.f };
                     p.mass = MASS;
                     p.density = 0.f;
                     p.pressure = 0.f;
@@ -683,7 +682,8 @@ ParticleSystem::reset(ParticleConfig config) {
                            h * frand() - h / 2,
                            d * frand() - d / 2 };
             p.velocity = { 0.f,0.f,0.f };
-            p.force = { 0.f,0.f,0.f };
+            p.force_press = { 0.f,0.f,0.f };
+            p.force_visc = { 0.f,0.f,0.f };
             p.mass = MASS;
             p.density = 0.f;
             p.pressure = 0.f;
