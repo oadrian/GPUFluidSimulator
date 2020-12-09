@@ -13,7 +13,7 @@
 #define PARTICLES_KERNEL_H
 
 #include "vector_types.h"
-#include "Eigen/Dense"
+#include "Eigen/Core"
 using namespace Eigen;
 typedef unsigned int uint;
 

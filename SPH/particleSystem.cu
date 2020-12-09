@@ -30,7 +30,7 @@ extern "C" {
 		}
 	}
 
-	void allocateArray(void** devPtr, int size) {
+	void allocateArray(void** devPtr, size_t size) {
 		checkCudaErrors(cudaMalloc(devPtr, size));
 	}
 
@@ -42,23 +42,23 @@ extern "C" {
 		checkCudaErrors(cudaDeviceSynchronize());
 	}
 
-	void copyArrayFromDevice(void* host, const void* device, int size) {
+	void copyArrayFromDevice(void* host, const void* device, size_t size) {
 		checkCudaErrors(cudaMemcpy((char*)host, device, size, cudaMemcpyDeviceToHost));
 	}
 	
-	void copyArrayToDevice(void* device, const void* host, int size) {
+	void copyArrayToDevice(void* device, const void* host, size_t size) {
 		checkCudaErrors(cudaMemcpy((char*)device, host, size, cudaMemcpyHostToDevice));
 	}
 
-	void cudaComputeDensities() {
+	void cudaComputeDensities(Particle* dev_particles) {
 		return;
 	}
 
-	void cudaComputeForces() {
+	void cudaComputeForces(Particle* dev_particles) {
 		return;
 	}
 
-	void particleCollisions() {
+	void cudaParticleCollisions(Particle* dev_particles) {
 		return;
 	}
 

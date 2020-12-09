@@ -12,6 +12,7 @@
 #ifndef __PARTICLESYSTEM_H__
 #define __PARTICLESYSTEM_H__
 //#define DEBUG
+//#define CPU_IMPL
 #define REST_DENS 1000.f
 #define GAS_CONSTANT 2000.f
 #define m_H 0.1f
@@ -166,6 +167,8 @@ protected: // data
     Grid_item *m_z_grid;        // z-indexing grid array
     float* m_hPos;              // particle positions
 
+    // GPU data
+    Particle* m_d_particles;    // GPU device particles datastructure
     uint   m_posVbo;            // vertex buffer object for particle positions
     uint   m_colorVBO;          // vertex buffer object for colors
 

@@ -116,8 +116,9 @@ ParticleSystem::_initialize(int numParticles) {
     m_particles.resize(m_numParticles);
 
     // allocate GPU data
-    unsigned int memSize = sizeof(float) * 4 * m_numParticles;
+    allocateArray((void**)&m_d_particles, sizeof(Particle) * m_numParticles);
 
+    unsigned int memSize = sizeof(float) * 4 * m_numParticles;
     if (m_bUseOpenGL) {
         m_posVbo = createVBO(memSize);
     }
@@ -126,7 +127,7 @@ ParticleSystem::_initialize(int numParticles) {
     }
 
     if (m_bUseOpenGL) {
-        m_colorVBO = createVBO(m_numParticles * 4 * sizeof(float));
+        m_colorVBO = createVBO(memSize);
 
         // fill color buffer
         glBindBuffer(GL_ARRAY_BUFFER, m_colorVBO);
@@ -149,7 +150,7 @@ ParticleSystem::_initialize(int numParticles) {
         glUnmapBuffer(GL_ARRAY_BUFFER);
     }
     else {
-        allocateArray((void**)&m_cudaColorVBO, sizeof(float) * numParticles * 4);
+        allocateArray((void**)&m_cudaColorVBO, memSize);
     }
 
     sdkCreateTimer(&m_timer);
@@ -161,8 +162,12 @@ void
 ParticleSystem::_finalize() {
     assert(m_bInitialized);
 
+    // free CPU data
     delete[] m_hPos;
     m_particles.clear();
+
+    // free GPU data
+    freeArray((void*)m_d_particles);
 
     if (m_bUseOpenGL) {
         glDeleteBuffers(1, (const GLuint*)&m_posVbo);
@@ -524,6 +529,7 @@ ParticleSystem::update(float deltaTime) {
     for (int iter = 0; iter < m_solverIterations; iter++) {
 
 #ifdef DEBUG
+        // SEQUENTIAL IMPLEMENTATION
         computeDensities();
 
         computeForces();
@@ -532,6 +538,8 @@ ParticleSystem::update(float deltaTime) {
 
         integrate(deltaTime);
 #else
+#ifdef CPU_IMPL
+        // OPENMP IMPLEMENTATION
         // place particles into their grid indices and sort particles according to cell indices
         constructGridArray();
 
@@ -546,6 +554,23 @@ ParticleSystem::update(float deltaTime) {
 
         // integrates velocity and position based on forces
         integrate(deltaTime);
+#else
+        // CUDA IMLPEMENTATION
+        // place particles into their grid indices and sort particles according to cell indices
+        constructGridArray();
+
+        // N^2 algorithm for calculating density for each particle, computes pressure as well
+        zcomputeDensities();
+
+        // computes pressure and gravity force contribution on each particle
+        zcomputeForces();
+
+        // find particle collisions
+        zparticleCollisions();
+
+        // integrates velocity and position based on forces
+        integrate(deltaTime);
+#endif
 #endif // DEBUG
     }
 
