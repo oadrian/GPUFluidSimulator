@@ -43,6 +43,10 @@ struct SimParams
 
     float3 boxMin;
     float3 boxMax;
+
+    float3 boxDims;
+
+    int gridDim;
 };
 
 struct Particle {
