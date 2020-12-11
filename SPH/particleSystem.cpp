@@ -596,23 +596,21 @@ ParticleSystem::update(float deltaTime) {
         // place particles into their grid indices and sort particles according to cell indices
         constructGridArray();
 
-        // N^2 algorithm for calculating density for each particle, computes pressure as well
-        //copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
-        //cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
-        //copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
-        zcomputeDensities();
+        // Copy Particles Array over to GPU 
+        copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
 
-        // computes pressure and gravity force contribution on each particle
-        //copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
-        //cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
-        //copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
-        zcomputeForces();
+        // copmute density and pressure for every particle
+        cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+
+        // computes pressure and viscosity force contribution on each particle
+        cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
         
         // find particle collisions
-        copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
         cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+
+        // Copy Particles back to host 
         copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
-        //zparticleCollisions();
+        
         // integrates velocity and position based on forces
         integrate(deltaTime);
 
