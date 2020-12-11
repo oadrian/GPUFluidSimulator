@@ -342,4 +342,7 @@ extern "C" {
 		return;
 	}
 
+	void cudaIntegrate(float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {
+		return;
+	}
 }

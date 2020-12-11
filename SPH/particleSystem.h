@@ -69,13 +69,6 @@ public:
         return m_colorVBO;
     }
 
-    void* getCudaPosVBO()              const {
-        return (void*)m_cudaPosVBO;
-    }
-    void* getCudaColorVBO()            const {
-        return (void*)m_cudaColorVBO;
-    }
-
     void dumpParticles(uint start, uint count);
 
     void setIterations(int i) {
@@ -139,7 +132,7 @@ protected: // methods
 
     std::vector<uint> getNeighbors(uint z_index);
 protected: // data
-    bool m_bInitialized, m_bUseOpenGL;
+    bool m_bInitialized;
     uint m_numParticles;
 
     // CPU data
@@ -158,9 +151,6 @@ protected: // data
     Grid_item* m_d_B_prime;     // GPU device compact grid datastructure
     uint   m_posVbo;            // vertex buffer object for particle positions
     uint   m_colorVBO;          // vertex buffer object for colors
-
-    float* m_cudaPosVBO;        // these are the CUDA deviceMem Pos
-    float* m_cudaColorVBO;      // these are the CUDA deviceMem Color
 
     // params
     SimParams m_params;

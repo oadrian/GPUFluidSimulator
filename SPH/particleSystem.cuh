@@ -15,4 +15,6 @@ extern "C"
 	void cudaComputeDensities(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
 	void cudaComputeForces(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
 	void cudaParticleCollisions(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
+
+	void cudaIntegrate(float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params);
 }

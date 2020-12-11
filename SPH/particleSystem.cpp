@@ -36,7 +36,6 @@
 
 ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenGL) :
     m_bInitialized(false),
-    m_bUseOpenGL(bUseOpenGL),
     m_numParticles(numParticles),
     m_hPos(0),
     m_boxDims(boxDims),
@@ -122,39 +121,28 @@ ParticleSystem::_initialize(int numParticles) {
     allocateArray((void**)&m_d_B, sizeof(Grid_item) * m_z_grid_size);
 
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
-    if (m_bUseOpenGL) {
-        m_posVbo = createVBO(memSize);
-    }
-    else {
-        allocateArray((void**)&m_cudaPosVBO, memSize);
-    }
+    m_posVbo = createVBO(memSize);
+    m_colorVBO = createVBO(memSize);
 
-    if (m_bUseOpenGL) {
-        m_colorVBO = createVBO(memSize);
+    // fill color buffer
+    glBindBuffer(GL_ARRAY_BUFFER, m_colorVBO);
+    float* data = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    float* ptr = data;
 
-        // fill color buffer
-        glBindBuffer(GL_ARRAY_BUFFER, m_colorVBO);
-        float* data = (float*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-        float* ptr = data;
-
-        for (uint i = 0; i < m_numParticles; i++) {
-            float t = i / (float)m_numParticles;
+    for (uint i = 0; i < m_numParticles; i++) {
+        float t = i / (float)m_numParticles;
 #if 0
-            * ptr++ = rand() / (float)RAND_MAX;
-            *ptr++ = rand() / (float)RAND_MAX;
-            *ptr++ = rand() / (float)RAND_MAX;
+        * ptr++ = rand() / (float)RAND_MAX;
+        *ptr++ = rand() / (float)RAND_MAX;
+        *ptr++ = rand() / (float)RAND_MAX;
 #else
-            colorRamp(t, ptr);
-            ptr += 3;
+        colorRamp(t, ptr);
+        ptr += 3;
 #endif
-            * ptr++ = 1.0f;
-        }
+        * ptr++ = 1.0f;
+    }
 
-        glUnmapBuffer(GL_ARRAY_BUFFER);
-    }
-    else {
-        allocateArray((void**)&m_cudaColorVBO, memSize);
-    }
+    glUnmapBuffer(GL_ARRAY_BUFFER);
 
     sdkCreateTimer(&m_timer);
 
@@ -174,14 +162,8 @@ ParticleSystem::_finalize() {
     freeArray((void*)m_d_particles);
     freeArray((void*)m_d_B);
 
-    if (m_bUseOpenGL) {
-        glDeleteBuffers(1, (const GLuint*)&m_posVbo);
-        glDeleteBuffers(1, (const GLuint*)&m_colorVBO);
-    }
-    else {
-        freeArray(m_cudaPosVBO);
-        freeArray(m_cudaColorVBO);
-    }
+    glDeleteBuffers(1, (const GLuint*)&m_posVbo);
+    glDeleteBuffers(1, (const GLuint*)&m_colorVBO);
 }
 
 //float ParticleSystem::guass_kernel(float3 rij, float h) {
@@ -636,13 +618,9 @@ ParticleSystem::dumpParticles(uint start, uint count) {
 }
 
 void ParticleSystem::updatePosVBO() {
-    if (m_bUseOpenGL) {
-        glBindBuffer(GL_ARRAY_BUFFER, m_posVbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, m_numParticles * 4 * sizeof(float), m_hPos);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-    else {
-    }
+    glBindBuffer(GL_ARRAY_BUFFER, m_posVbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, m_numParticles * 4 * sizeof(float), m_hPos);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 inline float frand() {
