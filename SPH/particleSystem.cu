@@ -166,13 +166,14 @@ __global__ void kernelComputeDensities(Particle* dev_particles, Grid_item* dev_B
 	return;
 }
 
-__global__ void kernelComputeForces(Particle *dev_particles, Grid_item *dev_B, Grid_item *dev_B_prime, SimParams *params) {
+__global__ void kernelComputeForces(Particle *dev_particles, uint dev_num_particles, Grid_item *dev_B, Grid_item *dev_B_prime, SimParams *params) {
 	__shared__ Particle batch[GRID_COMPACT_WIDTH];
 	__shared__ int copied;
-	if (threadIdx.x == 0) copied = 0;
+	copied = 0;
 	__syncthreads();
 	uint blockid = blockIdx.x;
 	uint particleid = dev_B_prime[blockid].start + threadIdx.x;
+	if (!(0 <= particleid && particleid < dev_num_particles)) return;
 	Particle pi = dev_particles[particleid];
 	pi.force_press = { 0.f, 0.f, 0.f };
 	pi.force_visc = { 0.f, 0.f, 0.f };
@@ -306,7 +307,7 @@ extern "C" {
 	}
 
 	void cudaComputeForces(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params) {
-		kernelComputeForces <<<dev_B_prime_size, GRID_COMPACT_WIDTH>>>(dev_particles, dev_B, dev_B_prime, params);
+		kernelComputeForces <<<dev_B_prime_size, GRID_COMPACT_WIDTH>>>(dev_particles, dev_num_particles, dev_B, dev_B_prime, params);
 		return;
 	}
 

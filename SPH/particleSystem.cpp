@@ -119,7 +119,6 @@ ParticleSystem::_initialize(int numParticles) {
     allocateArray((void**)&m_d_params, sizeof(SimParams));
     allocateArray((void**)&m_d_particles, sizeof(Particle) * m_numParticles);
     allocateArray((void**)&m_d_B, sizeof(Grid_item) * m_z_grid_size);
-    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_z_grid_size);
 
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
     if (m_bUseOpenGL) {
@@ -173,7 +172,6 @@ ParticleSystem::_finalize() {
     freeArray((void*)m_d_params);
     freeArray((void*)m_d_particles);
     freeArray((void*)m_d_B);
-    freeArray((void*)m_d_B_prime);
 
     if (m_bUseOpenGL) {
         glDeleteBuffers(1, (const GLuint*)&m_posVbo);
@@ -520,6 +518,7 @@ void ParticleSystem::constructGridArray() {
             //printf("Incremented %d to %d particles\n", grid_dex, m_z_grid[grid_dex].nParticles);
         }
     }
+    copyArrayToDevice((void*)m_d_B, m_z_grid, m_z_grid_size * sizeof(Grid_item));
 
     // compact z_grid
     std::vector<Grid_item> grid;
@@ -536,6 +535,10 @@ void ParticleSystem::constructGridArray() {
     m_z_grid_prime_size = grid.size();
     m_z_grid_prime = new Grid_item[m_z_grid_prime_size];
     std::memcpy((void*)m_z_grid_prime, grid.data(), m_z_grid_prime_size * sizeof(Grid_item));
+
+    // allocate cuda B_prime array
+    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_z_grid_prime_size);
+    copyArrayToDevice((void*)m_d_B_prime, m_z_grid_prime, m_z_grid_prime_size * sizeof(Grid_item));
 }
 
 void printZGrid(Grid_item *m_z_grid, Grid_item *m_z_grid_prime) {
@@ -554,8 +557,7 @@ void
 ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
     omp_set_num_threads(omp_get_max_threads());
-    //std::cout << coord2zIndex({ 0, 1, 2 }) << std::endl;
-    //std::cout << zIndex2coord(34) << std::endl;
+    copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
     for (int iter = 0; iter < m_solverIterations; iter++) {
 
 #ifdef DEBUG
@@ -584,28 +586,23 @@ ParticleSystem::update(float deltaTime) {
 
         // integrates velocity and position based on forces
         integrate(deltaTime);
+
+        // free z_grid_prime (b_prime)
+        delete[] m_z_grid_prime;
+        freeArray(m_d_B_prime);
 #else
         // CUDA IMLPEMENTATION
         // place particles into their grid indices and sort particles according to cell indices
         constructGridArray();
 
         // N^2 algorithm for calculating density for each particle, computes pressure as well
-        //zcomputeDensities();
-        copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
-        copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
-        copyArrayToDevice((void*)m_d_B, m_z_grid, m_z_grid_size * sizeof(Grid_item));
-        copyArrayToDevice((void*)m_d_B_prime, m_z_grid_prime, m_z_grid_prime_size * sizeof(Grid_item));
-        cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
-
+        //cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+        zcomputeDensities();
 
         // computes pressure and gravity force contribution on each particle
+        copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
         cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
-        //cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
-        copyArrayFromDevice(&m_params, (void*)m_d_params, sizeof(SimParams));
         copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
-        copyArrayFromDevice(m_z_grid, (void*)m_d_B, m_z_grid_size * sizeof(Grid_item));
-        copyArrayFromDevice(m_z_grid_prime, (void*)m_d_B_prime, m_z_grid_prime_size * sizeof(Grid_item));
-        
         //zcomputeForces();
         
         // find particle collisions
@@ -613,6 +610,10 @@ ParticleSystem::update(float deltaTime) {
         zparticleCollisions();
         // integrates velocity and position based on forces
         integrate(deltaTime);
+
+        // free z_grid_prime (b_prime)
+        delete[] m_z_grid_prime;
+        freeArray(m_d_B_prime);
 #endif
 #endif // DEBUG
     }
