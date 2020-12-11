@@ -175,16 +175,18 @@ __global__ void kernelComputeDensities(Particle* dev_particles, uint dev_num_par
 
 __global__ void kernelComputeForces(Particle *dev_particles, uint dev_num_particles, Grid_item *dev_B, Grid_item *dev_B_prime, SimParams *params) {
 	__shared__ Particle batch[GRID_COMPACT_WIDTH];
-	__shared__ int copied;
+	__shared__ int total_cnt;
+	__shared__ int batch_cnt;
 	uint blockid = blockIdx.x;
-	uint particleid = dev_B_prime[blockid].start + threadIdx.x;
-	if (!(0 <= particleid && particleid < dev_num_particles)) return;
-	Particle pi = dev_particles[particleid];
-	pi.force_press = { 0.f, 0.f, 0.f };
-	pi.force_visc = { 0.f, 0.f, 0.f };
+	if (dev_B_prime[blockid].nParticles == 0) return;
+	bool valid = threadIdx.x < dev_B_prime[blockid].nParticles;
+	uint particleid = (valid) ? dev_B_prime[blockid].start + threadIdx.x : dev_B_prime[blockid].start;
+	Particle* pi = &dev_particles[particleid];
+	if (valid) pi->force_press = { 0.f, 0.f, 0.f };
+	if (valid) pi->force_visc = { 0.f, 0.f, 0.f };
 
 	// for each neighboring grid block
-	dim3 coords = zIndex2coord(pi.zindex);
+	dim3 coords = zIndex2coord(pi->zindex);
 	for (int dx = -1; dx < 2; dx++) {
 		for (int dy = -1; dy < 2; dy++) {
 			for (int dz = -1; dz < 2; dz++) {
@@ -200,23 +202,27 @@ __global__ void kernelComputeForces(Particle *dev_particles, uint dev_num_partic
 				Grid_item neighbor_block = dev_B[blockZIndex];
 				int start = neighbor_block.start;
 				int nParticles = neighbor_block.nParticles;
-				copied = 0;
+				total_cnt = 0;
+				batch_cnt = 0;
 				__syncthreads();
 
-				while (copied < nParticles) {
+				while (total_cnt < nParticles) {
 					// in batches, copy particles into the batch array for processing
-					int toCopyDex = copied + threadIdx.x;
+					int toCopyDex = total_cnt + threadIdx.x;
+					batch_cnt = 0;
 					__syncthreads();
 					if (toCopyDex < nParticles) {
 						batch[threadIdx.x] = dev_particles[start + toCopyDex];
-						atomicAdd(&copied, 1); // count the particle as copied
+						atomicAdd(&batch_cnt, 1); // count the particle as copied
 					}
 					__syncthreads();
 					// each active thread computes values for itself from its neighbors
-					for (int j = 0; j < copied%GRID_COMPACT_WIDTH; j++) {
-						Particle pj = batch[j];
-						computeForce(&pi, &pj);
+					for (int j = 0; j < batch_cnt; j++) {
+						Particle* pj = &batch[j];
+						if (valid) computeForce(pi, pj);
 					}
+					if (threadIdx.x == 0) total_cnt += batch_cnt;
+					__syncthreads();
 				}
 			}
 		}
