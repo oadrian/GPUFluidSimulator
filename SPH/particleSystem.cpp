@@ -590,23 +590,25 @@ ParticleSystem::update(float deltaTime) {
         constructGridArray();
 
         // N^2 algorithm for calculating density for each particle, computes pressure as well
-        zcomputeDensities();
-
-        // computes pressure and gravity force contribution on each particle
+        //zcomputeDensities();
         copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
         copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
         copyArrayToDevice((void*)m_d_B, m_z_grid, m_z_grid_size * sizeof(Grid_item));
         copyArrayToDevice((void*)m_d_B_prime, m_z_grid_prime, m_z_grid_prime_size * sizeof(Grid_item));
-        cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+        cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+
+
+        // computes pressure and gravity force contribution on each particle
         copyArrayFromDevice(&m_params, (void*)m_d_params, sizeof(SimParams));
         copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
         copyArrayFromDevice(m_z_grid, (void*)m_d_B, m_z_grid_size * sizeof(Grid_item));
         copyArrayFromDevice(m_z_grid_prime, (void*)m_d_B_prime, m_z_grid_prime_size * sizeof(Grid_item));
+        
         //zcomputeForces();
-
+        
         // find particle collisions
+        //cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
         zparticleCollisions();
-
         // integrates velocity and position based on forces
         integrate(deltaTime);
 #endif

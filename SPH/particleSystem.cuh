@@ -12,7 +12,7 @@ extern "C"
 	void copyArrayFromDevice(void *host, const void *device, size_t size);
 	void copyArrayToDevice(void* device, const void* host, size_t size);
 
-	void cudaComputeDensities(Particle *dev_particles);
+	void cudaComputeDensities(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
 	void cudaComputeForces(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
-	void cudaParticleCollisions(Particle* dev_particles);
+	void cudaParticleCollisions(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
 }
