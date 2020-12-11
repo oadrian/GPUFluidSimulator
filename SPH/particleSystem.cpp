@@ -119,7 +119,7 @@ ParticleSystem::_initialize(int numParticles) {
     allocateArray((void**)&m_d_params, sizeof(SimParams));
     allocateArray((void**)&m_d_particles, sizeof(Particle) * m_numParticles);
     allocateArray((void**)&m_d_B, sizeof(Grid_item) * m_z_grid_size);
-    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_z_grid_prime_size);
+    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_z_grid_size);
 
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
     if (m_bUseOpenGL) {
@@ -533,9 +533,9 @@ void ParticleSystem::constructGridArray() {
             iter += GRID_COMPACT_WIDTH;
         }
     }
-    m_z_grid_prime_size = grid.size() * sizeof(Grid_item);
+    m_z_grid_prime_size = grid.size();
     m_z_grid_prime = new Grid_item[m_z_grid_prime_size];
-    std::memcpy((void*)m_z_grid_prime, grid.data(), m_z_grid_prime_size);
+    std::memcpy((void*)m_z_grid_prime, grid.data(), m_z_grid_prime_size * sizeof(Grid_item));
 }
 
 void printZGrid(Grid_item *m_z_grid, Grid_item *m_z_grid_prime) {

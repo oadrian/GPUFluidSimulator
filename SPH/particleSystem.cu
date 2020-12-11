@@ -210,9 +210,7 @@ extern "C" {
 	}
 
 	void cudaComputeForces(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params) {
-		uint num_blocks = (dev_B_prime_size % GRID_COMPACT_WIDTH == 0) ? dev_B_prime_size / GRID_COMPACT_WIDTH : 1 + (dev_B_prime_size / GRID_COMPACT_WIDTH);
-
-		kernelComputeForces <<<num_blocks, GRID_COMPACT_WIDTH >>> (dev_particles, dev_B, dev_B_prime, params);
+		kernelComputeForces <<<dev_B_prime_size, GRID_COMPACT_WIDTH >>> (dev_particles, dev_B, dev_B_prime, params);
 		return;
 	}
 
