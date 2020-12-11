@@ -42,9 +42,9 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
     m_timer(NULL),
     m_solverIterations(1) {
     // initialize grid
-    m_z_grid_dim = nextPow2((uint)(BOX_SIZE / (0.66666f * m_H)));
-    m_z_grid_size = m_z_grid_dim * m_z_grid_dim * m_z_grid_dim;
-    m_z_grid = new Grid_item[m_z_grid_size];
+    m_h_B_dim = nextPow2((uint)(BOX_SIZE / (0.66666f * m_H)));
+    m_h_B_size = m_h_B_dim * m_h_B_dim * m_h_B_dim;
+    m_h_B = new Grid_item[m_h_B_size];
 
     // set simulation parameters
     m_params.particleRadius = 1.0f / 64.0f;
@@ -57,7 +57,7 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
     m_params.boxMax.x = boxDims.x / 2;
     m_params.boxMax.y = boxDims.y / 2;
     m_params.boxMax.z = boxDims.z / 2;
-    m_params.gridDim = m_z_grid_dim;
+    m_params.gridDim = m_h_B_dim;
 
     _initialize(numParticles);
 }
@@ -65,7 +65,7 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
 ParticleSystem::~ParticleSystem() {
     _finalize();
     m_numParticles = 0;
-    delete[] m_z_grid;
+    delete[] m_h_B;
 }
 
 uint
@@ -118,7 +118,7 @@ ParticleSystem::_initialize(int numParticles) {
     // allocate GPU data
     allocateArray((void**)&m_d_params, sizeof(SimParams));
     allocateArray((void**)&m_d_particles, sizeof(Particle) * m_numParticles);
-    allocateArray((void**)&m_d_B, sizeof(Grid_item) * m_z_grid_size);
+    allocateArray((void**)&m_d_B, sizeof(Grid_item) * m_h_B_size);
 
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
     m_posVbo = createVBO(memSize);
@@ -256,9 +256,9 @@ std::vector<uint> ParticleSystem::getNeighbors(uint z_index) {
                 int x = coords.x() + dx;
                 int y = coords.y() + dy;
                 int z = coords.z() + dz;
-                if (0 <= x && x < m_z_grid_dim &&
-                    0 <= y && y < m_z_grid_dim &&
-                    0 <= z && z < m_z_grid_dim) {
+                if (0 <= x && x < m_h_B_dim &&
+                    0 <= y && y < m_h_B_dim &&
+                    0 <= z && z < m_h_B_dim) {
                     neighbors.push_back(coord2zIndex(Vector3i({ x,y,z })));
                 }
             }
@@ -280,15 +280,15 @@ void ParticleSystem::computeDensities() {
 void ParticleSystem::zcomputeDensities() {
     // loop through each grid block, and for each only compute using its particles
 #pragma omp parallel for schedule(static, CHUNK)
-    for (int block = 0; block < m_z_grid_size; block++) {
-        if (m_z_grid[block].nParticles == 0) continue;
-        for (int i = m_z_grid[block].start; i < m_z_grid[block].start + m_z_grid[block].nParticles; i++) {
+    for (int block = 0; block < m_h_B_size; block++) {
+        if (m_h_B[block].nParticles == 0) continue;
+        for (int i = m_h_B[block].start; i < m_h_B[block].start + m_h_B[block].nParticles; i++) {
             Particle& pi = m_particles[i];
             std::vector<uint> neighbors = getNeighbors(block);
             pi.density = 0.f;
             for (uint neighbor : neighbors) {
-                if (m_z_grid[neighbor].nParticles == 0) continue;
-                for (int j = m_z_grid[neighbor].start; j < m_z_grid[neighbor].start + m_z_grid[neighbor].nParticles; j++) {
+                if (m_h_B[neighbor].nParticles == 0) continue;
+                for (int j = m_h_B[neighbor].start; j < m_h_B[neighbor].start + m_h_B[neighbor].nParticles; j++) {
                     Particle& pj = m_particles[j];
                     computeDensity(pi, pj);
                 }
@@ -310,16 +310,16 @@ void ParticleSystem::computeForces() {
 
 void ParticleSystem::zcomputeForces() {
 #pragma omp parallel for schedule(static, CHUNK)
-    for (int block = 0; block < m_z_grid_size; block++) {
-        if (m_z_grid[block].nParticles == 0) continue;
-        for (int i = m_z_grid[block].start; i < m_z_grid[block].start + m_z_grid[block].nParticles; i++) {
+    for (int block = 0; block < m_h_B_size; block++) {
+        if (m_h_B[block].nParticles == 0) continue;
+        for (int i = m_h_B[block].start; i < m_h_B[block].start + m_h_B[block].nParticles; i++) {
             Particle& pi = m_particles[i];
             std::vector<uint> neighbors = getNeighbors(block);
             pi.force_press = { 0.f, 0.f, 0.f };
             pi.force_visc = { 0.f, 0.f, 0.f };
             for (uint neighbor : neighbors) {
-                if (m_z_grid[neighbor].nParticles == 0) continue;
-                for (int j = m_z_grid[neighbor].start; j < m_z_grid[neighbor].start + m_z_grid[neighbor].nParticles; j++) {
+                if (m_h_B[neighbor].nParticles == 0) continue;
+                for (int j = m_h_B[neighbor].start; j < m_h_B[neighbor].start + m_h_B[neighbor].nParticles; j++) {
                     Particle& pj = m_particles[j];
                     computeForce(pi, pj);
                 }
@@ -345,16 +345,16 @@ void ParticleSystem::particleCollisions() {
 void ParticleSystem::zparticleCollisions() {
     // detect collisions
 #pragma omp parallel for schedule(static, CHUNK)
-    for (int block = 0; block < m_z_grid_size; block++) {
-        if (m_z_grid[block].nParticles == 0) continue;
-        for (int i = m_z_grid[block].start; i < m_z_grid[block].start + m_z_grid[block].nParticles; i++) {
+    for (int block = 0; block < m_h_B_size; block++) {
+        if (m_h_B[block].nParticles == 0) continue;
+        for (int i = m_h_B[block].start; i < m_h_B[block].start + m_h_B[block].nParticles; i++) {
             Particle& pi = m_particles[i];
             std::vector<uint> neighbors = getNeighbors(block);
             pi.delta_velocity = { 0.f, 0.f, 0.f };
             pi.collision_count = 0;
             for (uint neighbor : neighbors) {
-                if (m_z_grid[neighbor].nParticles == 0) continue;
-                for (int j = m_z_grid[neighbor].start; j < m_z_grid[neighbor].start + m_z_grid[neighbor].nParticles; j++) {
+                if (m_h_B[neighbor].nParticles == 0) continue;
+                for (int j = m_h_B[neighbor].start; j < m_h_B[neighbor].start + m_h_B[neighbor].nParticles; j++) {
                     Particle& pj = m_particles[j];
                     if (pi.index == pj.index) continue;
                     computeCollision(pi, pj);
@@ -461,9 +461,9 @@ uint ParticleSystem::get_Z_index(Particle p) {
     float posY = p.position.y() - m_params.boxMin.y;
     float posZ = p.position.z() - m_params.boxMin.z;
     Vector3i coord;
-    coord.x() = floor((posX / m_boxDims.x) * m_z_grid_dim);
-    coord.y() = floor((posY / m_boxDims.y) * m_z_grid_dim);
-    coord.z() = floor((posZ / m_boxDims.z) * m_z_grid_dim);
+    coord.x() = floor((posX / m_boxDims.x) * m_h_B_dim);
+    coord.y() = floor((posY / m_boxDims.y) * m_h_B_dim);
+    coord.z() = floor((posZ / m_boxDims.z) * m_h_B_dim);
     
     return coord2zIndex(coord);
 }
@@ -481,7 +481,7 @@ void ParticleSystem::constructGridArray() {
     // sort the particles vector according to the z index
     std::sort(m_particles.begin(), m_particles.end(), cmpParticles);
     // clear prev grid array
-    std::memset(m_z_grid, 0, m_z_grid_size * sizeof(Grid_item));
+    std::memset(m_h_B, 0, m_h_B_size * sizeof(Grid_item));
     // set the grid array where each item has the starting index into the particles
     // vector and the number of particles that block in the grid contains
     long long grid_dex = -1;
@@ -492,46 +492,46 @@ void ParticleSystem::constructGridArray() {
         if (zind != grid_dex) {
             // found a new block of particles
             grid_dex = zind;
-            m_z_grid[grid_dex].start = i;
-            m_z_grid[grid_dex].nParticles = 1;
+            m_h_B[grid_dex].start = i;
+            m_h_B[grid_dex].nParticles = 1;
             //printf("Found a new block at %d\n", i);  
         }
         else {
-            m_z_grid[grid_dex].nParticles++; // still in same block, increment particles
-            //printf("Incremented %d to %d particles\n", grid_dex, m_z_grid[grid_dex].nParticles);
+            m_h_B[grid_dex].nParticles++; // still in same block, increment particles
+            //printf("Incremented %d to %d particles\n", grid_dex, m_h_B[grid_dex].nParticles);
         }
     }
-    copyArrayToDevice((void*)m_d_B, m_z_grid, m_z_grid_size * sizeof(Grid_item));
+    copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
 
     // compact z_grid
     std::vector<Grid_item> grid;
-    for (int i = 0; i < m_z_grid_size; i++) {
+    for (int i = 0; i < m_h_B_size; i++) {
         uint iter = 0;
-        while (iter < m_z_grid[i].nParticles) {
+        while (iter < m_h_B[i].nParticles) {
             Grid_item gi;
-            gi.start = iter + m_z_grid[i].start;
-            gi.nParticles = std::min(GRID_COMPACT_WIDTH, m_z_grid[i].nParticles - iter);
+            gi.start = iter + m_h_B[i].start;
+            gi.nParticles = std::min(GRID_COMPACT_WIDTH, m_h_B[i].nParticles - iter);
             grid.push_back(gi);
             iter += GRID_COMPACT_WIDTH;
         }
     }
-    m_z_grid_prime_size = grid.size();
-    m_z_grid_prime = new Grid_item[m_z_grid_prime_size];
-    std::memcpy((void*)m_z_grid_prime, grid.data(), m_z_grid_prime_size * sizeof(Grid_item));
+    m_h_B_prime_size = grid.size();
+    m_h_B_prime = new Grid_item[m_h_B_prime_size];
+    std::memcpy((void*)m_h_B_prime, grid.data(), m_h_B_prime_size * sizeof(Grid_item));
 
     // allocate cuda B_prime array
-    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_z_grid_prime_size);
-    copyArrayToDevice((void*)m_d_B_prime, m_z_grid_prime, m_z_grid_prime_size * sizeof(Grid_item));
+    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_h_B_prime_size);
+    copyArrayToDevice((void*)m_d_B_prime, m_h_B_prime, m_h_B_prime_size * sizeof(Grid_item));
 }
 
-void printZGrid(Grid_item *m_z_grid, Grid_item *m_z_grid_prime) {
+void printZGrid(Grid_item *m_h_B, Grid_item *m_h_B_prime) {
     printf("\ngrid item array \n");
     for (int i = 0; i < 10; i++) {
-        printf("i:%d,start:%u,size:%u;    ", i, m_z_grid[i].start, m_z_grid[i].nParticles);
+        printf("i:%d,start:%u,size:%u;    ", i, m_h_B[i].start, m_h_B[i].nParticles);
     }
     printf("\ngrid item prime array\n");
     for (int i = 0; i < 10; i++) {
-        printf("i:%d,start:%u,size:%u;    ", i, m_z_grid_prime[i].start, m_z_grid_prime[i].nParticles);
+        printf("i:%d,start:%u,size:%u;    ", i, m_h_B_prime[i].start, m_h_B_prime[i].nParticles);
     }
 }
 
@@ -571,7 +571,7 @@ ParticleSystem::update(float deltaTime) {
         integrate(deltaTime);
 
         // free z_grid_prime (b_prime)
-        delete[] m_z_grid_prime;
+        delete[] m_h_B_prime;
         freeArray(m_d_B_prime);
 #else
         // CUDA IMLPEMENTATION
@@ -582,13 +582,13 @@ ParticleSystem::update(float deltaTime) {
         copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
 
         // copmute density and pressure for every particle
-        cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+        cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params);
 
         // computes pressure and viscosity force contribution on each particle
-        cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+        cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params);
         
         // find particle collisions
-        cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+        cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params);
 
         // Copy Particles back to host 
         copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
@@ -597,7 +597,7 @@ ParticleSystem::update(float deltaTime) {
         integrate(deltaTime);
 
         // free z_grid_prime (b_prime)
-        delete[] m_z_grid_prime;
+        delete[] m_h_B_prime;
         freeArray(m_d_B_prime);
 #endif
 #endif // DEBUG

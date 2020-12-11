@@ -137,11 +137,11 @@ protected: // data
 
     // CPU data
     std::vector<Particle> m_particles;      // Particle datastructure
-    uint    m_z_grid_dim;       // dimension of the z-index grid
-    uint  m_z_grid_size;        // size of the z-index grid
-    Grid_item *m_z_grid;        // z-indexing grid array
-    uint m_z_grid_prime_size;   // size of the compact z-index grid array
-    Grid_item* m_z_grid_prime;  // compact z-indexing grid array
+    uint    m_h_B_dim;       // dimension of the z-index grid
+    uint  m_h_B_size;        // size of the z-index grid
+    Grid_item *m_h_B;        // z-indexing grid array
+    uint m_h_B_prime_size;   // size of the compact z-index grid array
+    Grid_item* m_h_B_prime;  // compact z-indexing grid array
     float* m_hPos;              // particle positions
 
     // GPU data
