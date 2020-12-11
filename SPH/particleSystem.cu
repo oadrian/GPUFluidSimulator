@@ -19,19 +19,23 @@ __device__ void computePressureTait(Particle* p) {
 }
 
 __device__ void computeDensity(Particle* pi, const Particle* pj) {
+	//printf("hi from computeDensity\n");
 	const float POLY6 = 315.f / (65.f * PI_F * powf(m_H, 9.f));
 	Vector3f rij = pi->position - pj->position;
 	float r2 = rij.squaredNorm();
+	Vector3f t = { 1.f, 2.f, 3.f }, d = { 2.f, 2.f, 2.f };
 	if (r2 < HSQ) {
 		pi->density += pj->mass * POLY6 * powf(HSQ - r2, 3.f);
 	}
 }
 
 __device__ void computeForce(Particle* pi, const Particle* pj) {
+	//printf("hi from computeForce\n");
 	const float SPIKY_GRAD = -45.f / (PI_F * powf(m_H, 6.f));
 	const float VISC_LAP = 45.f / (PI_F * powf(m_H, 6.f));
 	Vector3f rij = pi->position - pj->position;
 	float r = rij.norm();
+	Vector3f t = { 1.f, 2.f, 3.f }, d = { 2.f, 2.f, 2.f };
 	if (r < m_H) {
 		pi->force_press += -rij.normalized() * pj->mass * (pi->pressure + pj->pressure) / (2.f * pj->density) * SPIKY_GRAD * powf(m_H - r, 2.f);
 		pi->force_visc += VISC * pj->mass * (pj->velocity - pi->velocity) / pj->density * VISC_LAP * (m_H - r);
@@ -39,12 +43,14 @@ __device__ void computeForce(Particle* pi, const Particle* pj) {
 }
 
 __device__ void computeCollision(Particle* pi, const Particle* pj) {
+	//printf("hi from computeCollision\n");
 	if (pi->index == pj->index) return;
 	Vector3f vij, rij;
 	float dij;
 	vij = pi->velocity - pj->velocity;
 	rij = pi->position - pj->position;
 	dij = rij.norm();
+	Vector3f t = { 1.f, 2.f, 3.f }, d = { 2.f, 2.f, 2.f };
 	if (dij <= COLLISION_PARAM * 2 * pi->radius && rij.dot(vij) < 0) {
 		pi->delta_velocity += (pj->mass * (1.f + RESTITUTION)) * (rij.dot(vij) / (dij * dij)) * rij;
 		pi->collision_count++;

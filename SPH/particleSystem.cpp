@@ -58,6 +58,7 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenG
     m_params.boxMax.x = boxDims.x / 2;
     m_params.boxMax.y = boxDims.y / 2;
     m_params.boxMax.z = boxDims.z / 2;
+    m_params.gridDim = m_z_grid_dim;
 
     _initialize(numParticles);
 }
@@ -602,9 +603,9 @@ ParticleSystem::update(float deltaTime) {
         zcomputeDensities();
 
         // computes pressure and gravity force contribution on each particle
-        /*copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
-        cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
-        copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));*/
+        //copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
+        //cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+        //copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
         zcomputeForces();
         
         // find particle collisions

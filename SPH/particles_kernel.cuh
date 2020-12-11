@@ -46,7 +46,7 @@ struct SimParams
 
     float3 boxDims;
 
-    int gridDim;
+    uint gridDim;
 };
 
 struct Particle {
