@@ -599,6 +599,8 @@ ParticleSystem::update(float deltaTime) {
 
 
         // computes pressure and gravity force contribution on each particle
+        cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
+        //cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_z_grid_size, m_d_B_prime, m_z_grid_prime_size, m_d_params);
         copyArrayFromDevice(&m_params, (void*)m_d_params, sizeof(SimParams));
         copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
         copyArrayFromDevice(m_z_grid, (void*)m_d_B, m_z_grid_size * sizeof(Grid_item));
