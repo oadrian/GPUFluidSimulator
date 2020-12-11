@@ -144,13 +144,14 @@ __global__ void kernelComputeForces(Particle *dev_particles, Grid_item *dev_B, G
 				}
 				// get the zindex of the block
 				int blockZIndex = coord2zIndex(Vector3i(neighborx, neighbory, neighborz));
-				Grid_item neighbor_block = dev_B_prime[blockZIndex];
+				Grid_item neighbor_block = dev_B[blockZIndex];
 				int start = neighbor_block.start;
 				int nParticles = neighbor_block.nParticles;
 
 				while (copied < nParticles) {
 					// in batches, copy particles into the batch array for processing
 					int toCopyDex = copied + threadIdx.x;
+					__syncthreads();
 					if (toCopyDex < nParticles) {
 						batch[threadIdx.x] = dev_particles[start + toCopyDex];
 						atomicAdd(&copied, 1); // count the particle as copied
@@ -158,7 +159,7 @@ __global__ void kernelComputeForces(Particle *dev_particles, Grid_item *dev_B, G
 					__syncthreads();
 					// each active thread computes values for itself from its neighbors
 					for (int j = 0; j < copied%GRID_COMPACT_WIDTH; j++) {
-						Particle pj = dev_particles[j];
+						Particle pj = batch[j];
 						computeForce(&pi, &pj);
 					}
 				}
@@ -208,7 +209,10 @@ extern "C" {
 		return;
 	}
 
-	void cudaComputeForces(Particle* dev_particles) {
+	void cudaComputeForces(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params) {
+		uint num_blocks = (dev_B_prime_size % GRID_COMPACT_WIDTH == 0) ? dev_B_prime_size / GRID_COMPACT_WIDTH : 1 + (dev_B_prime_size / GRID_COMPACT_WIDTH);
+
+		kernelComputeForces <<<num_blocks, GRID_COMPACT_WIDTH >>> (dev_particles, dev_B, dev_B_prime, params);
 		return;
 	}
 

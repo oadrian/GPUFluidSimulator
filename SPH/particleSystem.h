@@ -152,6 +152,7 @@ protected: // data
     float* m_hPos;              // particle positions
 
     // GPU data
+    SimParams* m_d_params;      // GPU device params datastructure
     Particle* m_d_particles;    // GPU device particles datastructure
     Grid_item* m_d_B;           // GPU device full grid datastructure
     Grid_item* m_d_B_prime;     // GPU device compact grid datastructure
