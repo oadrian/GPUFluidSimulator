@@ -91,6 +91,7 @@ int iterations = 4;
 int ballr = 10;
 
 ParticleSystem *psystem = 0;
+ParticleSystem::ParticleComputeMode compute_mode = ParticleSystem::CUDA_PARALLEL;
 
 // fps
 static int fpsCount = 0;
@@ -116,7 +117,7 @@ extern "C" void cudaInit(int argc, char** argv);
 // initialize particle system
 void initParticleSystem(int numParticles, float3 boxDims, bool bUseOpenGL)
 {
-    psystem = new ParticleSystem(numParticles, boxDims, bUseOpenGL);
+    psystem = new ParticleSystem(numParticles, boxDims, compute_mode);
     psystem->reset(ParticleSystem::CONFIG_GRID);
 
     if (bUseOpenGL)
