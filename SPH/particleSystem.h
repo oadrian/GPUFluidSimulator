@@ -16,7 +16,7 @@
 #ifdef DEBUG
 #define NUM_PARTICLES   1000
 #else
-#define NUM_PARTICLES   1000
+#define NUM_PARTICLES   15000
 #endif // DEBUG
 #define CHUNK 4
 
@@ -151,6 +151,8 @@ protected: // data
     Grid_item* m_d_B_prime;     // GPU device compact grid datastructure
     uint   m_posVbo;            // vertex buffer object for particle positions
     uint   m_colorVBO;          // vertex buffer object for colors
+
+    struct cudaGraphicsResource* m_cuda_posvbo_resource; // handles OpenGL-CUDA exchange
 
     // params
     SimParams m_params;

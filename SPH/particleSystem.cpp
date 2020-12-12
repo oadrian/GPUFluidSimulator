@@ -122,6 +122,7 @@ ParticleSystem::_initialize(int numParticles) {
 
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
     m_posVbo = createVBO(memSize);
+    registerGLBufferObject(m_posVbo, &m_cuda_posvbo_resource);
     m_colorVBO = createVBO(memSize);
 
     // fill color buffer
@@ -162,6 +163,7 @@ ParticleSystem::_finalize() {
     freeArray((void*)m_d_particles);
     freeArray((void*)m_d_B);
 
+    unregisterGLBufferObject(m_cuda_posvbo_resource);
     glDeleteBuffers(1, (const GLuint*)&m_posVbo);
     glDeleteBuffers(1, (const GLuint*)&m_colorVBO);
 }
@@ -590,21 +592,25 @@ ParticleSystem::update(float deltaTime) {
         // find particle collisions
         cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params);
 
+        // integrates velocity and position based on forces
+        float* m_dPos = (float*)mapGLBufferObject(&m_cuda_posvbo_resource);
+        cudaIntegrate(m_dPos, deltaTime, m_d_particles, m_numParticles, m_d_params);
+
         // Copy Particles back to host 
         copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
-        
-        // integrates velocity and position based on forces
-        integrate(deltaTime);
 
         // free z_grid_prime (b_prime)
         delete[] m_h_B_prime;
         freeArray(m_d_B_prime);
+        unmapGLBufferObject(m_cuda_posvbo_resource);
 #endif
 #endif // DEBUG
     }
 
+#if defined(DEBUG) || defined(CPU_IMPL)
     // update the vertex buffer object
     updatePosVBO();
+#endif // DEBUG || CPU_IMPL
 }
 
 void

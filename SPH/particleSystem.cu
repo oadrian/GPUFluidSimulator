@@ -1,8 +1,11 @@
 // implementation of kernels
 
-#include <cuda.h>
+#include <GL/freeglut.h>
 #include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
 #include <helper_cuda.h>
+
+#include <helper_functions.h>
 #include "particleSystem.cuh"
 
 __device__ void computePressureIdeal(Particle* p) {
@@ -295,6 +298,52 @@ __global__ void kernelComputeCollisions(Particle* dev_particles, uint dev_num_pa
 	return;
 }
 
+__global__ void kernelIntegrate(float* gl_pos, float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {
+	uint particleId = blockIdx.x * blockDim.x + threadIdx.x;
+	if (particleId >= dev_num_particles) return;
+	Particle* p = &dev_particles[particleId];
+	Vector3f force_grav = { 0.f, GRAVITY * G_MODIFIER * p->density, 0.f };
+	Vector3f force = p->force_press + p->force_visc + force_grav;
+	Vector3f accel = force / p->density;
+	p->velocity += deltaTime * accel + p->delta_velocity;
+	p->position += deltaTime * p->velocity;
+
+	// bounds check in X
+	if (p->position.x() - EPS_F < params->boxMin.x) {
+		p->position.x() = params->boxMin.x + EPS_F;
+		p->velocity.x() *= -.75f;  // reverse direction
+	}
+	if (p->position.x() + EPS_F > params->boxMax.x) {
+		p->position.x() = params->boxMax.x - EPS_F;
+		p->velocity.x() *= -.75f;  // reverse direction
+	}
+
+	// bounds check in Y
+	if (p->position.y() - EPS_F < params->boxMin.y) {
+		p->position.y() = params->boxMin.y + EPS_F;
+		p->velocity.y() *= -.75f;  // reverse direction
+	}
+	if (p->position.y() + EPS_F > params->boxMax.y) {
+		p->position.y() = params->boxMax.y - EPS_F;
+		p->velocity.y() *= -.75f;  // reverse direction
+	}
+
+	// bounds check in Z
+	if (p->position.z() - EPS_F < params->boxMin.z) {
+		p->position.z() = params->boxMin.z + EPS_F;
+		p->velocity.z() *= -.75f;  // reverse direction
+	}
+	if (p->position.z() + EPS_F > params->boxMax.z) {
+		p->position.z() = params->boxMax.z - EPS_F;
+		p->velocity.z() *= -.75f;  // reverse direction
+	}
+
+	gl_pos[p->index * 4 + 0] = p->position.x();
+	gl_pos[p->index * 4 + 1] = p->position.y();
+	gl_pos[p->index * 4 + 2] = p->position.z();
+	gl_pos[p->index * 4 + 3] = 1.0f;
+}
+
 extern "C" {
 	void cudaInit(int argc, char** argv) {
 		int devID;
@@ -313,6 +362,27 @@ extern "C" {
 
 	void freeArray(void* devPtr) {
 		checkCudaErrors(cudaFree(devPtr));
+	}
+
+	void registerGLBufferObject(uint vbo, struct cudaGraphicsResource** cuda_vbo_resource) {
+		checkCudaErrors(cudaGraphicsGLRegisterBuffer(cuda_vbo_resource, vbo, cudaGraphicsMapFlagsNone));
+	}
+
+	void unregisterGLBufferObject(struct cudaGraphicsResource* cuda_vbo_resource) {
+		checkCudaErrors(cudaGraphicsUnregisterResource(cuda_vbo_resource));
+	}
+
+	void* mapGLBufferObject(struct cudaGraphicsResource** cuda_vbo_resource) {
+		void* ptr;
+		checkCudaErrors(cudaGraphicsMapResources(1, cuda_vbo_resource, 0));
+		size_t num_bytes;
+		checkCudaErrors(cudaGraphicsResourceGetMappedPointer((void**)&ptr, &num_bytes,
+			*cuda_vbo_resource));
+		return ptr;
+	}
+
+	void unmapGLBufferObject(struct cudaGraphicsResource* cuda_vbo_resource) {
+		checkCudaErrors(cudaGraphicsUnmapResources(1, &cuda_vbo_resource, 0));
 	}
 
 	void threadSync() {
@@ -342,7 +412,9 @@ extern "C" {
 		return;
 	}
 
-	void cudaIntegrate(float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {
+	void cudaIntegrate(float *gl_pos, float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {
+		uint num_blocks = (dev_num_particles % GRID_COMPACT_WIDTH == 0) ? dev_num_particles / GRID_COMPACT_WIDTH : 1 + (dev_num_particles / GRID_COMPACT_WIDTH);
+		kernelIntegrate <<<num_blocks, GRID_COMPACT_WIDTH >>> (gl_pos, deltaTime, dev_particles, dev_num_particles, params);
 		return;
 	}
 }
