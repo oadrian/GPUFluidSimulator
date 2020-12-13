@@ -323,7 +323,7 @@ __device__ int numBlocksBelow(int zindex, Grid_item* dev_B) {
 	int blocks = 0;
 	for (int i = 0; i < zindex; i++) {
 		int particlesInBlock = dev_B[i].nParticles;
-		blocks += ceil(particlesInBlock / GRID_COMPACT_WIDTH);
+		blocks += (particlesInBlock + GRID_COMPACT_WIDTH - 1) / GRID_COMPACT_WIDTH; // floor division
 	}
 	return blocks;
 }
@@ -336,7 +336,7 @@ __global__ void kernelConstructBPrimeGrid(Particle* dev_particles, uint dev_num_
 	int numParticlesInBlock = dev_B[zind].nParticles;
 	int particleStartingIndex = dev_B[zind].start;
 	int localIndex = index - particleStartingIndex;
-	int b_prime_dex = numBlocksBelow(zind, dev_B) + floor(localIndex / GRID_COMPACT_WIDTH);
+	int b_prime_dex = numBlocksBelow(zind, dev_B) + (localIndex / GRID_COMPACT_WIDTH);
 	// continue taking the min of particle indices with the same B' index to find the starting index
 	atomicMin(&(dev_B_prime[b_prime_dex].start), index);
 	// atomically increment the particle count

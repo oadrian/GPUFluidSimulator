@@ -22,5 +22,5 @@ extern "C"
 	void cudaParticleCollisions(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint  dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
 
 	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params);
-	void cudaIntegrate(float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params);
+	void cudaIntegrate(float* gl_pos, float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params);
 }
