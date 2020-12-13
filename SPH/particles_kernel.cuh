@@ -29,7 +29,7 @@ typedef unsigned int uint;
 #define EPS_F        0.00001f
 #define RESTITUTION 0.f
 #define COLLISION_PARAM 1.0
-#define BOX_SIZE 1.f
+#define BOX_SIZE 2.f
 #define GRID_COMPACT_WIDTH 32u
 
 // simulation parameters

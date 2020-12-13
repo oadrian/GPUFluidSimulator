@@ -11,14 +11,18 @@
 
 #ifndef __PARTICLESYSTEM_H__
 #define __PARTICLESYSTEM_H__
-#define DEBUG
-#define NUM_PARTICLES   1000
+#define BENCHMARK_FUNCTIONS
+#define NUM_PARTICLES   100000
 #define OMP_CHUNK 4
 #define OMP_INTEGRATE_CHUNK 64
 #define FILE_PREFIX "benchmark_"
 #define BENCHMARK_FREQ 2000.f
-
+#ifdef BENCHMARK_FUNCTIONS
 #define TIME_FUNCTION(dest, f) do { auto __s = std::chrono::steady_clock::now(); f; auto __e = std::chrono::steady_clock::now(); dest = (__e - __s).count();} while (0)
+#else
+#define TIME_FUNCTION(dest, f) f
+#endif // BENCHMARK_FUNCTIONS
+
 
 #include <iostream>
 #include <fstream>
@@ -143,6 +147,7 @@ protected: // methods
     std::vector<uint> getNeighbors(uint z_index);
 
     void dumpBenchmark(long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t);
+    void dumpBenchmark(long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_time);
 protected: // data
     bool m_bInitialized;
     uint m_numParticles;

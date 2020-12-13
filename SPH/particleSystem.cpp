@@ -633,6 +633,26 @@ void ParticleSystem::dumpBenchmark(long long d_t, long long f_t, long long pc_t,
     }
 }
 
+void ParticleSystem::dumpBenchmark(long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_t) {
+    m_timer_curr = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_timer_curr - m_timer_start);
+    if (duration.count() > BENCHMARK_FREQ) {
+        m_timer_start = m_timer_curr;
+        m_global_time += duration.count();
+        m_benchmark_file << m_global_time / 1000 << "sec" << "\ttotal:" << t_t << 
+            "ns,\t\tcopying:" << cp_t <<
+            "ns,\t\tz-index:" << z_t <<
+            "ns,\t\tsort:" << s_t <<
+            "ns,\t\tb-grid:"<< cbg_t <<
+            "ns,\t\tb'-grid:" << cbpg_t <<
+            "ns,\t\tdens:" << d_t << 
+            "ns,\t\tforce:" << f_t << 
+            "ns,\t\tcollision:" << pc_t << 
+            "ns,\t\tintegrate:" << i_t << 
+            "ns" << std::endl;
+    }
+}
+
 // step the simulation
 void
 ParticleSystem::update(float deltaTime) {
@@ -641,8 +661,9 @@ ParticleSystem::update(float deltaTime) {
     copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
     //copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
     for (int iter = 0; iter < m_solverIterations; iter++) {
-        long long d_time, f_time, pc_time, i_time, total_time;
-        d_time = f_time = pc_time = i_time = total_time = 0;
+        long long zi_time, s_time, cbg_time, cbpg_time, d_time, f_time, pc_time, i_time, total_time;
+        long long cp_time = 0;
+        zi_time = s_time = cbg_time = cbpg_time = d_time = f_time = pc_time = i_time = total_time = 0;
         auto s = std::chrono::steady_clock::now();
         if (m_compute_mode == SEQUENTIAL) {
             // SEQUENTIAL IMPLEMENTATION
@@ -678,16 +699,16 @@ ParticleSystem::update(float deltaTime) {
         else {
             assert(m_compute_mode == CUDA_PARALLEL);
             // CUDA IMLPEMENTATION
-            cudaMapZIndex(m_d_particles, m_numParticles, m_d_params);
+            TIME_FUNCTION(zi_time, cudaMapZIndex(m_d_particles, m_numParticles, m_d_params));
 
-            cudaSortParticles(m_d_particles, m_numParticles);
+            TIME_FUNCTION(s_time, cudaSortParticles(m_d_particles, m_numParticles));
 
-            cudaConstructBGrid(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_params);
+            TIME_FUNCTION(cbg_time, cudaConstructBGrid(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_params));
             
             copyArrayFromDevice(m_h_B, (void*)m_d_B, m_h_B_size * sizeof(Grid_item));
 
             // place particles into their grid indices and sort particles according to cell indices
-            constructGridArrayAlt();
+            TIME_FUNCTION(cbpg_time, constructGridArrayAlt());
 
             // copmute density and pressure for every particle
             TIME_FUNCTION(d_time, cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
@@ -704,13 +725,21 @@ ParticleSystem::update(float deltaTime) {
 
             // free z_grid_prime (b_prime)
             delete[] m_h_B_prime;
+            auto __start = std::chrono::steady_clock::now();
             freeArray(m_d_B_prime);
+            auto __end = std::chrono::steady_clock::now();
             unmapGLBufferObject(m_cuda_posvbo_resource);
+            cp_time = (__end - __start).count();
         }
         auto e = std::chrono::steady_clock::now();
         total_time = (e - s).count();
         // dump to file
-        dumpBenchmark(d_time, f_time, pc_time, i_time, total_time);
+        if (m_compute_mode == CUDA_PARALLEL) {
+            dumpBenchmark(zi_time, s_time, cbg_time, cbpg_time, d_time, f_time, pc_time, i_time, total_time, cp_time);
+        }
+        else {
+            dumpBenchmark(d_time, f_time, pc_time, i_time, total_time);
+        }
     }
 
     if (m_compute_mode == SEQUENTIAL || m_compute_mode == OMP_PARALLEL) {
