@@ -30,7 +30,7 @@ typedef unsigned int uint;
 #define RESTITUTION 0.f
 #define COLLISION_PARAM 1.0
 #define BOX_SIZE 2.f
-#define GRID_COMPACT_WIDTH 32u
+#define GRID_COMPACT_WIDTH 4u
 
 // simulation parameters
 struct SimParams
