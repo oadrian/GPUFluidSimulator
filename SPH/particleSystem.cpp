@@ -121,6 +121,7 @@ ParticleSystem::_initialize(int numParticles) {
     allocateArray((void**)&m_d_params, sizeof(SimParams));
     allocateArray((void**)&m_d_particles, sizeof(Particle) * m_numParticles);
     allocateArray((void**)&m_d_B, sizeof(Grid_item) * m_h_B_size);
+    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_numParticles);
 
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
     m_posVbo = createVBO(memSize);
@@ -179,6 +180,7 @@ ParticleSystem::_finalize() {
     freeArray((void*)m_d_params);
     freeArray((void*)m_d_particles);
     freeArray((void*)m_d_B);
+    freeArray((void*)m_d_B_prime);
 
     unregisterGLBufferObject(m_cuda_posvbo_resource);
     glDeleteBuffers(1, (const GLuint*)&m_posVbo);
@@ -586,7 +588,6 @@ void ParticleSystem::constructGridArray() {
     std::memcpy((void*)m_h_B_prime, grid.data(), m_h_B_prime_size * sizeof(Grid_item));
 
     // allocate cuda B_prime array
-    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_h_B_prime_size);
     copyArrayToDevice((void*)m_d_B_prime, m_h_B_prime, m_h_B_prime_size * sizeof(Grid_item));
 }
 
@@ -608,7 +609,6 @@ void ParticleSystem::constructGridArrayAlt() {
     std::memcpy((void*)m_h_B_prime, grid.data(), m_h_B_prime_size * sizeof(Grid_item));
 
     // allocate cuda B_prime array
-    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_h_B_prime_size);
     copyArrayToDevice((void*)m_d_B_prime, m_h_B_prime, m_h_B_prime_size * sizeof(Grid_item));
 }
 
@@ -694,7 +694,6 @@ ParticleSystem::update(float deltaTime) {
 
             // free z_grid_prime (b_prime)
             delete[] m_h_B_prime;
-            freeArray(m_d_B_prime);
         }
         else {
             assert(m_compute_mode == CUDA_PARALLEL);
@@ -724,11 +723,10 @@ ParticleSystem::update(float deltaTime) {
             TIME_FUNCTION(i_time, cudaIntegrate(m_dPos, deltaTime, m_d_particles, m_numParticles, m_d_params));
 
             // free z_grid_prime (b_prime)
-            delete[] m_h_B_prime;
             auto __start = std::chrono::steady_clock::now();
-            freeArray(m_d_B_prime);
-            auto __end = std::chrono::steady_clock::now();
+            delete[] m_h_B_prime;
             unmapGLBufferObject(m_cuda_posvbo_resource);
+            auto __end = std::chrono::steady_clock::now();
             cp_time = (__end - __start).count();
         }
         auto e = std::chrono::steady_clock::now();

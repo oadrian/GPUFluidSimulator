@@ -87,7 +87,7 @@ int numIterations = 0; // run until exit
 // simulation parameters
 float timestep = 0.0000005f;     // change back to something like 0.5
 float gravity = 0.0003f;
-int iterations = 4;
+int iterations = 1;
 int ballr = 10;
 
 ParticleSystem *psystem = 0;
