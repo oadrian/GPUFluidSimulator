@@ -310,15 +310,15 @@ __global__ void kernelGetZIndex(Particle* dev_particles, uint dev_num_particles,
 
 __global__ void kernelConstructBGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, SimParams* params) {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	if (index >= dev_num_particles) return; // one cuda thread per particle again
-	Particle p = dev_particles[index];
-	unsigned long long zind = p.zindex;
-	dev_B[zind].start = dev_num_particles; // make sure min comparison works
+	bool valid = index < dev_num_particles;
+	Particle p = (valid) ? dev_particles[index] : Particle();
+	uint zind = p.zindex;
+	if(valid) dev_B[zind].start = dev_num_particles; // make sure min comparison works
 	__syncthreads();
 	// continue taking the min of particle indices with the same z index to find the starting index
-	atomicMin(&(dev_B[zind].start), index);
+	if(valid) atomicMin(&(dev_B[zind].start), index);
 	// atomically increment the particle count
-	atomicAdd(&(dev_B[zind].nParticles), 1);
+	if(valid) atomicAdd(&(dev_B[zind].nParticles), 1);
 }
 
 // returns the number of blocks in B' that will exist below a certain particle
@@ -469,7 +469,7 @@ extern "C" {
 	void cudaMapZIndex(Particle* dev_particles, uint dev_num_particles, SimParams* params) {
 		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
 		// set particles' z indices
-		kernelGetZIndex << <blocks, GRID_COMPACT_WIDTH >> > (dev_particles, dev_num_particles, params);
+		kernelGetZIndex <<<blocks, GRID_COMPACT_WIDTH >>> (dev_particles, dev_num_particles, params);
 	}
 
 	void cudaSortParticles(Particle* dev_particles, uint dev_num_particles) {
@@ -478,12 +478,16 @@ extern "C" {
 		thrust::sort(t_dev_particles, t_dev_particles + dev_num_particles, particle_cmp());
 	}
 
-	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item** dev_B_prime, uint* dev_B_prime_size, SimParams* params) {
+	void cudaConstructBGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, SimParams* params) {
 		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
 		// clear the previous grid arrays
 		checkCudaErrors(cudaMemset(dev_B, 0, dev_b_size * sizeof(Grid_item)));
 		// set the B grid
-		kernelConstructBGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, params);
+		kernelConstructBGrid <<<blocks, GRID_COMPACT_WIDTH >>> (dev_particles, dev_num_particles, dev_B, dev_b_size, params);
+	}
+
+	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item** dev_B_prime, uint* dev_B_prime_size, SimParams* params) {
+		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
 		// find the size of the B' grid
 		int counting_blocks = ceil(dev_b_size / GRID_COMPACT_WIDTH);
 		int* prime_blocks;
