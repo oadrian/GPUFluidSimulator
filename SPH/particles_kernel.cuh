@@ -65,7 +65,7 @@ struct Particle {
 };
 
 struct particle_cmp {
-    __device__ bool operator() (const Particle& pi, const Particle& pj) {
+    __host__ __device__ bool operator() (const Particle& pi, const Particle& pj) {
         return (pi.zindex < pj.zindex);
     }
 };
