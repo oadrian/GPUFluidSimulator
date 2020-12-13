@@ -591,29 +591,6 @@ void ParticleSystem::constructGridArray() {
 }
 
 void ParticleSystem::constructGridArrayAlt() {
-    // clear prev grid array
-    std::memset(m_h_B, 0, m_h_B_size * sizeof(Grid_item));
-    // set the grid array where each item has the starting index into the particles
-    // vector and the number of particles that block in the grid contains
-    long long grid_dex = -1;
-    for (int i = 0; i < m_particles.size(); i++) {
-        Particle p = m_particles[i];
-        //printf("p is at zindex %d\n", p.zindex);
-        unsigned long long zind = p.zindex;
-        if (zind != grid_dex) {
-            // found a new block of particles
-            grid_dex = zind;
-            m_h_B[grid_dex].start = i;
-            m_h_B[grid_dex].nParticles = 1;
-            //printf("Found a new block at %d\n", i);  
-        }
-        else {
-            m_h_B[grid_dex].nParticles++; // still in same block, increment particles
-            //printf("Incremented %d to %d particles\n", grid_dex, m_h_B[grid_dex].nParticles);
-        }
-    }
-    copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
-
     // compact z_grid
     std::vector<Grid_item> grid;
     for (int i = 0; i < m_h_B_size; i++) {
@@ -705,12 +682,19 @@ ParticleSystem::update(float deltaTime) {
 
             cudaSortParticles(m_d_particles, m_numParticles);
 
-            copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
+            cudaConstructBGrid(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_params);
+            
+            copyArrayFromDevice(m_h_B, (void*)m_d_B, m_h_B_size * sizeof(Grid_item));
+
+            int numParticles = 0;
+            for (int i = 0; i < 20; i++) {
+                numParticles += m_h_B[i].nParticles;
+            }
+            printf("numParticles %d\n", numParticles);
+            while (1);
 
             // place particles into their grid indices and sort particles according to cell indices
             constructGridArrayAlt();
-            // Copy Particles Array over to GPU 
-            copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
 
             // copmute density and pressure for every particle
             TIME_FUNCTION(d_time, cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));

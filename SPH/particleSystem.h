@@ -12,7 +12,7 @@
 #ifndef __PARTICLESYSTEM_H__
 #define __PARTICLESYSTEM_H__
 #define DEBUG
-#define NUM_PARTICLES   500
+#define NUM_PARTICLES   10
 #define OMP_CHUNK 4
 #define OMP_INTEGRATE_CHUNK 64
 #define FILE_PREFIX "benchmark_"
