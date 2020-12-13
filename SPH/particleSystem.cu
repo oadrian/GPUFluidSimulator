@@ -356,6 +356,7 @@ __global__ void kernelConstructBPrimeGrid(Particle* dev_particles, uint dev_num_
 }
 
 __global__ void kernelIntegrate(float* gl_pos, float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {
+	const float DAMPING_FACTOR = -.98f;
 	uint particleId = blockIdx.x * blockDim.x + threadIdx.x;
 	if (particleId >= dev_num_particles) return;
 	Particle* p = &dev_particles[particleId];
@@ -368,31 +369,31 @@ __global__ void kernelIntegrate(float* gl_pos, float deltaTime, Particle* dev_pa
 	// bounds check in X
 	if (p->position.x() - EPS_F < params->boxMin.x) {
 		p->position.x() = params->boxMin.x + EPS_F;
-		p->velocity.x() *= -.75f;  // reverse direction
+		p->velocity.x() *= DAMPING_FACTOR;  // reverse direction
 	}
 	if (p->position.x() + EPS_F > params->boxMax.x) {
 		p->position.x() = params->boxMax.x - EPS_F;
-		p->velocity.x() *= -.75f;  // reverse direction
+		p->velocity.x() *= DAMPING_FACTOR;  // reverse direction
 	}
 
 	// bounds check in Y
 	if (p->position.y() - EPS_F < params->boxMin.y) {
 		p->position.y() = params->boxMin.y + EPS_F;
-		p->velocity.y() *= -.75f;  // reverse direction
+		p->velocity.y() *= DAMPING_FACTOR;  // reverse direction
 	}
 	if (p->position.y() + EPS_F > params->boxMax.y) {
 		p->position.y() = params->boxMax.y - EPS_F;
-		p->velocity.y() *= -.75f;  // reverse direction
+		p->velocity.y() *= DAMPING_FACTOR;  // reverse direction
 	}
 
 	// bounds check in Z
 	if (p->position.z() - EPS_F < params->boxMin.z) {
 		p->position.z() = params->boxMin.z + EPS_F;
-		p->velocity.z() *= -.75f;  // reverse direction
+		p->velocity.z() *= DAMPING_FACTOR;  // reverse direction
 	}
 	if (p->position.z() + EPS_F > params->boxMax.z) {
 		p->position.z() = params->boxMax.z - EPS_F;
-		p->velocity.z() *= -.75f;  // reverse direction
+		p->velocity.z() *= DAMPING_FACTOR;  // reverse direction
 	}
 
 	gl_pos[p->index * 4 + 0] = p->position.x();
