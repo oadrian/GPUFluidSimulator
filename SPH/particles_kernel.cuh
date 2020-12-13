@@ -64,6 +64,12 @@ struct Particle {
     uint zindex;
 };
 
+struct particle_cmp {
+    __device__ bool operator() (const Particle& pi, const Particle& pj) {
+        return (pi.zindex < pj.zindex);
+    }
+};
+
 struct Grid_item {
     uint nParticles;
     uint start;
