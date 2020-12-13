@@ -704,10 +704,11 @@ ParticleSystem::update(float deltaTime) {
 
             TIME_FUNCTION(cbg_time, cudaConstructBGrid(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_params));
             
-            copyArrayFromDevice(m_h_B, (void*)m_d_B, m_h_B_size * sizeof(Grid_item));
+            //copyArrayFromDevice(m_h_B, (void*)m_d_B, m_h_B_size * sizeof(Grid_item));
+            //TIME_FUNCTION(cbpg_time, constructGridArrayAlt());
 
             // place particles into their grid indices and sort particles according to cell indices
-            TIME_FUNCTION(cbpg_time, constructGridArrayAlt());
+            TIME_FUNCTION(cbpg_time, cudaConstructGridArray(m_d_particles, m_numParticles, m_d_B, m_h_B_size, &m_d_B_prime, &m_h_B_prime_size, m_d_params));
 
             // copmute density and pressure for every particle
             TIME_FUNCTION(d_time, cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
