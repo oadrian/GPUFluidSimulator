@@ -310,15 +310,22 @@ __global__ void kernelGetZIndex(Particle* dev_particles, uint dev_num_particles,
 
 __global__ void kernelConstructBGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, SimParams* params) {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	bool valid = index < dev_num_particles;
-	Particle p = (valid) ? dev_particles[index] : Particle();
-	uint zind = p.zindex;
-	if(valid) dev_B[zind].start = dev_num_particles; // make sure min comparison works
-	__syncthreads();
-	// continue taking the min of particle indices with the same z index to find the starting index
-	if(valid) atomicMin(&(dev_B[zind].start), index);
-	// atomically increment the particle count
-	if(valid) atomicAdd(&(dev_B[zind].nParticles), 1);
+	Particle *me, *neighbor;
+	if (index == 0) {
+		me = &dev_particles[index];
+		uint zind = me->zindex;
+		dev_B[zind].start = 0;
+		atomicAdd(&(dev_B[zind].nParticles), 1);
+	}
+	else if (index < dev_num_particles) {
+		me = &dev_particles[index];
+		neighbor = &dev_particles[index - 1];
+		uint zind = me->zindex;
+		if (zind != neighbor->zindex) {
+			dev_B[zind].start = index;
+		}
+		atomicAdd(&(dev_B[zind].nParticles), 1);
+	}
 }
 
 // returns the number of blocks in B' that will exist below a certain particle

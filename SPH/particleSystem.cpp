@@ -686,14 +686,6 @@ ParticleSystem::update(float deltaTime) {
             
             copyArrayFromDevice(m_h_B, (void*)m_d_B, m_h_B_size * sizeof(Grid_item));
 
-            //int numParticles = 0;
-            //for (int i = 0; i < m_h_B_size; i++) {
-            //    //printf("%d %d\n", m_h_B[i].nParticles, m_h_B[i].start);
-            //    numParticles += m_h_B[i].nParticles;
-            //}
-            //printf("numParticles %d\n", numParticles);
-            //while (1);
-
             // place particles into their grid indices and sort particles according to cell indices
             constructGridArrayAlt();
 
