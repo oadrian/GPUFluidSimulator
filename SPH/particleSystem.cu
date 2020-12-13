@@ -377,7 +377,7 @@ __global__ void kernelConstructBPrimeGrid(Particle* dev_particles, uint dev_num_
 }
 
 __global__ void kernelIntegrate(float* gl_pos, float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {
-	const float DAMPING_FACTOR = -.98f;
+	const float DAMPING_FACTOR = -.75f;
 	uint particleId = blockIdx.x * blockDim.x + threadIdx.x;
 	if (particleId >= dev_num_particles) return;
 	Particle* p = &dev_particles[particleId];
