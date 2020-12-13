@@ -590,6 +590,51 @@ void ParticleSystem::constructGridArray() {
     copyArrayToDevice((void*)m_d_B_prime, m_h_B_prime, m_h_B_prime_size * sizeof(Grid_item));
 }
 
+void ParticleSystem::constructGridArrayAlt() {
+    // clear prev grid array
+    std::memset(m_h_B, 0, m_h_B_size * sizeof(Grid_item));
+    // set the grid array where each item has the starting index into the particles
+    // vector and the number of particles that block in the grid contains
+    long long grid_dex = -1;
+    for (int i = 0; i < m_particles.size(); i++) {
+        Particle p = m_particles[i];
+        //printf("p is at zindex %d\n", p.zindex);
+        unsigned long long zind = p.zindex;
+        if (zind != grid_dex) {
+            // found a new block of particles
+            grid_dex = zind;
+            m_h_B[grid_dex].start = i;
+            m_h_B[grid_dex].nParticles = 1;
+            //printf("Found a new block at %d\n", i);  
+        }
+        else {
+            m_h_B[grid_dex].nParticles++; // still in same block, increment particles
+            //printf("Incremented %d to %d particles\n", grid_dex, m_h_B[grid_dex].nParticles);
+        }
+    }
+    copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
+
+    // compact z_grid
+    std::vector<Grid_item> grid;
+    for (int i = 0; i < m_h_B_size; i++) {
+        uint iter = 0;
+        while (iter < m_h_B[i].nParticles) {
+            Grid_item gi;
+            gi.start = iter + m_h_B[i].start;
+            gi.nParticles = std::min(GRID_COMPACT_WIDTH, m_h_B[i].nParticles - iter);
+            grid.push_back(gi);
+            iter += GRID_COMPACT_WIDTH;
+        }
+    }
+    m_h_B_prime_size = grid.size();
+    m_h_B_prime = new Grid_item[m_h_B_prime_size];
+    std::memcpy((void*)m_h_B_prime, grid.data(), m_h_B_prime_size * sizeof(Grid_item));
+
+    // allocate cuda B_prime array
+    allocateArray((void**)&m_d_B_prime, sizeof(Grid_item) * m_h_B_prime_size);
+    copyArrayToDevice((void*)m_d_B_prime, m_h_B_prime, m_h_B_prime_size * sizeof(Grid_item));
+}
+
 void printZGrid(Grid_item *m_h_B, Grid_item *m_h_B_prime) {
     printf("\ngrid item array \n");
     for (int i = 0; i < 10; i++) {
@@ -617,7 +662,6 @@ ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
     omp_set_num_threads(omp_get_max_threads());
     copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
-    copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
     //copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
     for (int iter = 0; iter < m_solverIterations; iter++) {
         long long d_time, f_time, pc_time, i_time, total_time;
@@ -657,14 +701,28 @@ ParticleSystem::update(float deltaTime) {
         else {
             assert(m_compute_mode == CUDA_PARALLEL);
             // CUDA IMLPEMENTATION
+            /*for (Particle& p : m_particles) {
+                p.zindex = get_Z_index(p);
+            }*/
+
+            copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
+
+            cudaMapZIndex(m_d_particles, m_numParticles, m_d_params);
+
+            cudaSortParticles(m_d_particles, m_numParticles);
+
+            copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
+
+            for (Particle& p : m_particles) {
+                printf("%d %d\n", p.zindex, get_Z_index(p));
+                assert(p.zindex == get_Z_index(p));
+            }
+
             // place particles into their grid indices and sort particles according to cell indices
-            //constructGridArray();
+            constructGridArrayAlt();
             // Copy Particles Array over to GPU 
-            //copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
-            // Copy B Array over to GPU
-            //copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
-            // place particles into their grid indices and sort particles according to cell indices
-            cudaConstructGridArray(m_d_particles, m_numParticles, m_d_B, m_h_B_size, &m_d_B_prime, &m_h_B_prime_size, m_d_params);
+            copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
+
             // copmute density and pressure for every particle
             TIME_FUNCTION(d_time, cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
 
@@ -678,11 +736,11 @@ ParticleSystem::update(float deltaTime) {
             float* m_dPos = (float*)mapGLBufferObject(&m_cuda_posvbo_resource);
             TIME_FUNCTION(i_time, cudaIntegrate(m_dPos, deltaTime, m_d_particles, m_numParticles, m_d_params));
             // Copy Particles back to host 
-            //copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
+            copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
 
             // free z_grid_prime (b_prime)
-            //delete[] m_h_B_prime;
-            //freeArray(m_d_B_prime);
+            delete[] m_h_B_prime;
+            freeArray(m_d_B_prime);
             unmapGLBufferObject(m_cuda_posvbo_resource);
         }
         auto e = std::chrono::steady_clock::now();
@@ -798,6 +856,7 @@ ParticleSystem::reset(ParticleConfig config) {
     break;
     }
     updatePosVBO();
+    copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
 }
 
 void
@@ -837,4 +896,5 @@ ParticleSystem::addSphere(int start, float* pos, float* vel, int r, float spacin
         }
     }
     updatePosVBO();
+    copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
 }

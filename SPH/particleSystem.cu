@@ -303,9 +303,9 @@ __global__ void kernelGetZIndex(Particle* dev_particles, uint dev_num_particles,
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (index >= dev_num_particles) return; // map one cuda thread per particle
 
-	Particle p = dev_particles[index];
-	p.zindex = get_Z_index(p, params);
-	
+	Particle *p = &dev_particles[index];
+	p->zindex = get_Z_index(*p, params);
+	if (index == 0) printf("cuda %d\n", p->zindex);
 }
 
 __global__ void kernelConstructBGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, SimParams* params) {
@@ -466,35 +466,44 @@ extern "C" {
 		kernelComputeCollisions <<<dev_B_prime_size, GRID_COMPACT_WIDTH>>>(dev_particles, dev_num_particles, dev_B, dev_B_prime, params);
 	}
 
-	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item** dev_B_prime, uint* dev_B_prime_size, SimParams* params) {
-		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
+	void cudaMapZIndex(Particle* dev_particles, uint dev_num_particles, SimParams* params) {
+		uint blocks = (dev_num_particles % GRID_COMPACT_WIDTH == 0) ? dev_num_particles / GRID_COMPACT_WIDTH : 1 + (dev_num_particles / GRID_COMPACT_WIDTH);
 		// set particles' z indices
-		kernelGetZIndex <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, params);
+		kernelGetZIndex << <blocks, GRID_COMPACT_WIDTH >> > (dev_particles, dev_num_particles, params);
+	}
+
+	void cudaSortParticles(Particle* dev_particles, uint dev_num_particles) {
 		// sort according to z index
 		thrust::device_ptr<Particle> t_dev_particles = thrust::device_pointer_cast(dev_particles);
 		thrust::sort(t_dev_particles, t_dev_particles + dev_num_particles, particle_cmp());
+	}
+
+	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item** dev_B_prime, uint* dev_B_prime_size, SimParams* params) {
+		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
 		// clear the previous grid arrays
-		cudaMemset(dev_B, 0, dev_b_size * sizeof(Grid_item));
+		checkCudaErrors(cudaMemset(dev_B, 0, dev_b_size * sizeof(Grid_item)));
 		// set the B grid
 		kernelConstructBGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, params);
 		// find the size of the B' grid
 		int counting_blocks = ceil(dev_b_size / GRID_COMPACT_WIDTH);
 		int* prime_blocks;
 		allocateArray((void**)&prime_blocks, dev_b_size * sizeof(int));
+		checkCudaErrors(cudaMemset(prime_blocks, 0, dev_b_size * sizeof(int)));
 		kernelGetBBlocks <<<counting_blocks, GRID_COMPACT_WIDTH>>> (dev_B, prime_blocks, dev_b_size);
 		thrust::device_ptr<int> t_prime_blocks = thrust::device_pointer_cast(prime_blocks);
+		printf("%d\n", dev_b_size);
 		thrust::inclusive_scan(t_prime_blocks, t_prime_blocks + dev_b_size, t_prime_blocks);
-		int *host_blocks = (int*)malloc(dev_b_size * sizeof(int));
-		cudaMemcpy((void*)host_blocks, (void*)prime_blocks, dev_b_size * sizeof(int), cudaMemcpyDeviceToHost);
-		*dev_B_prime_size = host_blocks[dev_b_size - 1];
-		// allocate the B' grid, free the old one, and point the pointer back to it
-		Grid_item* new_B_prime;
-		allocateArray((void**)&new_B_prime, *dev_B_prime_size * sizeof(Grid_item));
-		freeArray((void*)*dev_B_prime);
-		*dev_B_prime = new_B_prime;
-		// fill the B' grid
-		kernelConstructBPrimeGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, *dev_B_prime, *dev_B_prime_size, params);
-		free(host_blocks);
+		int B_prime_size;
+		checkCudaErrors(cudaMemcpy((void*)&B_prime_size, &prime_blocks[dev_b_size - 1], sizeof(int), cudaMemcpyDeviceToHost));
+		printf("B_prime_size %d", B_prime_size);
+		//int *host_blocks = (int*)malloc(dev_b_size * sizeof(int));
+		//cudaMemcpy((void*)host_blocks, (void*)prime_blocks, dev_b_size * sizeof(int), cudaMemcpyDeviceToHost);
+		//*dev_B_prime_size = host_blocks[dev_b_size - 1];
+		//// allocate the B' grid, free the old one, and point the pointer back to it
+		//allocateArray((void**)dev_B_prime, *dev_B_prime_size * sizeof(Grid_item));
+		//// fill the B' grid
+		//kernelConstructBPrimeGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, *dev_B_prime, *dev_B_prime_size, params);
+		//free(host_blocks);
 	}
 
 	void cudaIntegrate(float *gl_pos, float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {

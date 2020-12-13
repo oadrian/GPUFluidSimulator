@@ -129,6 +129,7 @@ protected: // methods
     Vector3i zIndex2coord(uint z_index);
     uint get_Z_index(Particle p);
     void constructGridArray();
+    void constructGridArrayAlt();
 
     float guass_kernel(Vector3f rij, float h);
     Vector3f guass_kernel_gradient(Vector3f rij, float h);
