@@ -7,6 +7,11 @@ extern "C"
 	void allocateArray(void** devPtr, size_t size);
 	void freeArray(void* devPtr);
 
+	void registerGLBufferObject(uint vbo, struct cudaGraphicsResource** cuda_vbo_resource);
+	void unregisterGLBufferObject(struct cudaGraphicsResource* cuda_vbo_resource);
+	void* mapGLBufferObject(struct cudaGraphicsResource** cuda_vbo_resource);
+	void unmapGLBufferObject(struct cudaGraphicsResource* cuda_vbo_resource);
+
 	void threadSync();
 
 	void copyArrayFromDevice(void *host, const void *device, size_t size);

@@ -29,17 +29,18 @@
 #include <cstdlib>
 #include <algorithm>
 #include <omp.h>
+#include <ctime>
 
 #ifndef CUDART_PI_F
 #define CUDART_PI_F         3.141592654f
 #endif
 
-ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenGL) :
+ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, ParticleComputeMode mode) :
     m_bInitialized(false),
     m_numParticles(numParticles),
     m_hPos(0),
     m_boxDims(boxDims),
-    m_timer(NULL),
+    m_compute_mode(mode),
     m_solverIterations(1) {
     // initialize grid
     m_h_B_dim = nextPow2((uint)(BOX_SIZE / (0.66666f * m_H)));
@@ -122,6 +123,7 @@ ParticleSystem::_initialize(int numParticles) {
 
     unsigned int memSize = sizeof(float) * 4 * m_numParticles;
     m_posVbo = createVBO(memSize);
+    registerGLBufferObject(m_posVbo, &m_cuda_posvbo_resource);
     m_colorVBO = createVBO(memSize);
 
     // fill color buffer
@@ -144,7 +146,22 @@ ParticleSystem::_initialize(int numParticles) {
 
     glUnmapBuffer(GL_ARRAY_BUFFER);
 
-    sdkCreateTimer(&m_timer);
+    m_timer_start = std::chrono::steady_clock::now();
+    m_global_time = 0.;
+
+    std::time_t t = std::time(0);
+    std::tm* now = std::localtime(&t);
+    std::string compute_mode = (m_compute_mode == SEQUENTIAL) ? "sequential" : (m_compute_mode == OMP_PARALLEL) ? "OMP" : "CUDA";
+    std::string file_name = FILE_PREFIX +
+        compute_mode + "_" +
+        std::to_string(1900+now->tm_year) + "_" +
+        std::to_string(now->tm_mon) + "_" + 
+        std::to_string(now->tm_mday) + "_" + 
+        std::to_string(now->tm_hour) + "_" + 
+        std::to_string(now->tm_min) + ".txt";
+    m_benchmark_file.open(file_name);
+    m_benchmark_file << "SPH Particle Simulation Benchmark" << std::endl;
+    m_benchmark_file << "Compute mode: " << compute_mode << std::endl;
 
     m_bInitialized = true;
 }
@@ -162,8 +179,11 @@ ParticleSystem::_finalize() {
     freeArray((void*)m_d_particles);
     freeArray((void*)m_d_B);
 
+    unregisterGLBufferObject(m_cuda_posvbo_resource);
     glDeleteBuffers(1, (const GLuint*)&m_posVbo);
     glDeleteBuffers(1, (const GLuint*)&m_colorVBO);
+
+    m_benchmark_file.close();
 }
 
 //float ParticleSystem::guass_kernel(float3 rij, float h) {
@@ -279,7 +299,7 @@ void ParticleSystem::computeDensities() {
 
 void ParticleSystem::zcomputeDensities() {
     // loop through each grid block, and for each only compute using its particles
-#pragma omp parallel for schedule(static, CHUNK)
+#pragma omp parallel for schedule(static, OMP_CHUNK)
     for (int block = 0; block < m_h_B_size; block++) {
         if (m_h_B[block].nParticles == 0) continue;
         for (int i = m_h_B[block].start; i < m_h_B[block].start + m_h_B[block].nParticles; i++) {
@@ -309,7 +329,7 @@ void ParticleSystem::computeForces() {
 }
 
 void ParticleSystem::zcomputeForces() {
-#pragma omp parallel for schedule(static, CHUNK)
+#pragma omp parallel for schedule(static, OMP_CHUNK)
     for (int block = 0; block < m_h_B_size; block++) {
         if (m_h_B[block].nParticles == 0) continue;
         for (int i = m_h_B[block].start; i < m_h_B[block].start + m_h_B[block].nParticles; i++) {
@@ -344,7 +364,7 @@ void ParticleSystem::particleCollisions() {
 
 void ParticleSystem::zparticleCollisions() {
     // detect collisions
-#pragma omp parallel for schedule(static, CHUNK)
+#pragma omp parallel for schedule(static, OMP_CHUNK)
     for (int block = 0; block < m_h_B_size; block++) {
         if (m_h_B[block].nParticles == 0) continue;
         for (int i = m_h_B[block].start; i < m_h_B[block].start + m_h_B[block].nParticles; i++) {
@@ -366,13 +386,59 @@ void ParticleSystem::zparticleCollisions() {
 }
 
 void ParticleSystem::integrate(float deltaTime) {
-#pragma omp parallel for schedule(static, 64)
     for (int i = 0; i < m_particles.size(); i++) {
         Particle& p = m_particles[i];
         Vector3f force_grav = { 0.f, GRAVITY * G_MODIFIER * p.density, 0.f };
         Vector3f force = p.force_press + p.force_visc + force_grav;
         Vector3f accel = force / p.density;
         p.velocity += deltaTime * accel + p.delta_velocity; 
+        p.position += deltaTime * p.velocity;
+
+        // bounds check in X
+        if (p.position.x() - EPS_F < m_params.boxMin.x) {
+            p.position.x() = m_params.boxMin.x + EPS_F;
+            p.velocity.x() *= -.75f;  // reverse direction
+        }
+        if (p.position.x() + EPS_F > m_params.boxMax.x) {
+            p.position.x() = m_params.boxMax.x - EPS_F;
+            p.velocity.x() *= -.75f;  // reverse direction
+        }
+
+        // bounds check in Y
+        if (p.position.y() - EPS_F < m_params.boxMin.y) {
+            p.position.y() = m_params.boxMin.y + EPS_F;
+            p.velocity.y() *= -.75f;  // reverse direction
+        }
+        if (p.position.y() + EPS_F > m_params.boxMax.y) {
+            p.position.y() = m_params.boxMax.y - EPS_F;
+            p.velocity.y() *= -.75f;  // reverse direction
+        }
+
+        // bounds check in Z
+        if (p.position.z() - EPS_F < m_params.boxMin.z) {
+            p.position.z() = m_params.boxMin.z + EPS_F;
+            p.velocity.z() *= -.75f;  // reverse direction
+        }
+        if (p.position.z() + EPS_F > m_params.boxMax.z) {
+            p.position.z() = m_params.boxMax.z - EPS_F;
+            p.velocity.z() *= -.75f;  // reverse direction
+        }
+
+        m_hPos[p.index * 4 + 0] = p.position.x();
+        m_hPos[p.index * 4 + 1] = p.position.y();
+        m_hPos[p.index * 4 + 2] = p.position.z();
+        m_hPos[p.index * 4 + 3] = 1.0f;
+    }
+}
+
+void ParticleSystem::zintegrate(float deltaTime) {
+#pragma omp parallel for schedule(static, OMP_INTEGRATE_CHUNK)
+    for (int i = 0; i < m_particles.size(); i++) {
+        Particle& p = m_particles[i];
+        Vector3f force_grav = { 0.f, GRAVITY * G_MODIFIER * p.density, 0.f };
+        Vector3f force = p.force_press + p.force_visc + force_grav;
+        Vector3f accel = force / p.density;
+        p.velocity += deltaTime * accel + p.delta_velocity;
         p.position += deltaTime * p.velocity;
 
         // bounds check in X
@@ -535,6 +601,16 @@ void printZGrid(Grid_item *m_h_B, Grid_item *m_h_B_prime) {
     }
 }
 
+void ParticleSystem::dumpBenchmark(long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t) {
+    m_timer_curr = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_timer_curr - m_timer_start);
+    if (duration.count() > BENCHMARK_FREQ) {
+        m_timer_start = m_timer_curr;
+        m_global_time += duration.count();
+        m_benchmark_file << m_global_time / 1000 << "sec" << "\ttotal:" << t_t << "ns,\t\tdens:" << d_t << "ns,\t\tforce:" << f_t << "ns,\t\tcollision:" << pc_t << "ns,\t\tintegrate:" << i_t << "ns" << std::endl;
+    }
+}
+
 // step the simulation
 void
 ParticleSystem::update(float deltaTime) {
@@ -542,72 +618,80 @@ ParticleSystem::update(float deltaTime) {
     omp_set_num_threads(omp_get_max_threads());
     copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
     for (int iter = 0; iter < m_solverIterations; iter++) {
+        long long d_time, f_time, pc_time, i_time, total_time;
+        d_time = f_time = pc_time = i_time = total_time = 0;
+        auto s = std::chrono::steady_clock::now();
+        if (m_compute_mode == SEQUENTIAL) {
+            // SEQUENTIAL IMPLEMENTATION
+            TIME_FUNCTION(d_time, computeDensities());
 
-#ifdef DEBUG
-        // SEQUENTIAL IMPLEMENTATION
-        computeDensities();
+            TIME_FUNCTION(f_time, computeForces());
 
-        computeForces();
+            TIME_FUNCTION(pc_time, particleCollisions());
 
-        particleCollisions();
+            TIME_FUNCTION(i_time, integrate(deltaTime));
+        }
+        else if (m_compute_mode == OMP_PARALLEL) {
+            // OPENMP IMPLEMENTATION
+            // place particles into their grid indices and sort particles according to cell indices
+            constructGridArray();
 
-        integrate(deltaTime);
-#else
-#ifdef CPU_IMPL
-        // OPENMP IMPLEMENTATION
-        // place particles into their grid indices and sort particles according to cell indices
-        constructGridArray();
+            // N^2 algorithm for calculating density for each particle, computes pressure as well
+            TIME_FUNCTION(d_time, zcomputeDensities());
 
-        // N^2 algorithm for calculating density for each particle, computes pressure as well
-        zcomputeDensities();
+            // computes pressure and gravity force contribution on each particle
+            TIME_FUNCTION(f_time, zcomputeForces());
 
-        // computes pressure and gravity force contribution on each particle
-        zcomputeForces();
+            // find particle collisions
+            TIME_FUNCTION(pc_time, zparticleCollisions());
 
-        // find particle collisions
-        zparticleCollisions();
+            // integrates velocity and position based on forces
+            TIME_FUNCTION(i_time, zintegrate(deltaTime));
 
-        // integrates velocity and position based on forces
-        integrate(deltaTime);
+            // free z_grid_prime (b_prime)
+            delete[] m_h_B_prime;
+            freeArray(m_d_B_prime);
+        }
+        else {
+            assert(m_compute_mode == CUDA_PARALLEL);
+            // CUDA IMLPEMENTATION
+            // place particles into their grid indices and sort particles according to cell indices
+            constructGridArray();
 
-        // free z_grid_prime (b_prime)
-        delete[] m_h_B_prime;
-        freeArray(m_d_B_prime);
-#else
-        // CUDA IMLPEMENTATION
-        // place particles into their grid indices and sort particles according to cell indices
-        constructGridArray();
+            // Copy Particles Array over to GPU 
+            copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
 
-        // Copy Particles Array over to GPU 
-        copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
+            // copmute density and pressure for every particle
+            TIME_FUNCTION(d_time, cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
 
-        // place particles in to grid
-        cudaConstructGridArray(m_d_particles, m_numParticles, m_d_params);
+            // computes pressure and viscosity force contribution on each particle
+            TIME_FUNCTION(f_time, cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
 
-        // copmute density and pressure for every particle
-        cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params);
+            // find particle collisions
+            TIME_FUNCTION(pc_time, cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
 
-        // computes pressure and viscosity force contribution on each particle
-        cudaComputeForces(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params);
-        
-        // find particle collisions
-        cudaParticleCollisions(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params);
+            // integrates velocity and position based on forces
+            float* m_dPos = (float*)mapGLBufferObject(&m_cuda_posvbo_resource);
+            TIME_FUNCTION(i_time, cudaIntegrate(m_dPos, deltaTime, m_d_particles, m_numParticles, m_d_params));
 
-        // Copy Particles back to host 
-        copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
-        
-        // integrates velocity and position based on forces
-        integrate(deltaTime);
+            // Copy Particles back to host 
+            copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
 
-        // free z_grid_prime (b_prime)
-        delete[] m_h_B_prime;
-        freeArray(m_d_B_prime);
-#endif
-#endif // DEBUG
+            // free z_grid_prime (b_prime)
+            delete[] m_h_B_prime;
+            freeArray(m_d_B_prime);
+            unmapGLBufferObject(m_cuda_posvbo_resource);
+        }
+        auto e = std::chrono::steady_clock::now();
+        total_time = (e - s).count();
+        // dump to file
+        dumpBenchmark(d_time, f_time, pc_time, i_time, total_time);
     }
 
-    // update the vertex buffer object
-    updatePosVBO();
+    if (m_compute_mode == SEQUENTIAL || m_compute_mode == OMP_PARALLEL) {
+        // update the vertex buffer object
+        updatePosVBO();
+    }
 }
 
 void

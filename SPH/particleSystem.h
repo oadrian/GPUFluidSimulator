@@ -11,16 +11,18 @@
 
 #ifndef __PARTICLESYSTEM_H__
 #define __PARTICLESYSTEM_H__
-//#define DEBUG
-//#define CPU_IMPL
-#ifdef DEBUG
-#define NUM_PARTICLES   1000
-#else
-#define NUM_PARTICLES   1000
-#endif // DEBUG
-#define CHUNK 4
+#define DEBUG
+#define NUM_PARTICLES   500
+#define OMP_CHUNK 4
+#define OMP_INTEGRATE_CHUNK 64
+#define FILE_PREFIX "benchmark_"
+#define BENCHMARK_FREQ 2000.f
 
+#define TIME_FUNCTION(dest, f) do { auto __s = std::chrono::steady_clock::now(); f; auto __e = std::chrono::steady_clock::now(); dest = (__e - __s).count();} while (0)
 
+#include <iostream>
+#include <fstream>
+#include <chrono>
 #include <helper_functions.h>
 #include "particles_kernel.cuh"
 #include "vector_functions.h"
@@ -41,7 +43,13 @@ static const uint nextPow2(uint x) {
 // Particle system class
 class ParticleSystem {
 public:
-    ParticleSystem(uint numParticles, float3 boxDims, bool bUseOpenGL);
+    enum ParticleComputeMode {
+        SEQUENTIAL,
+        OMP_PARALLEL,
+        CUDA_PARALLEL
+    };
+
+    ParticleSystem(uint numParticles, float3 boxDims, ParticleComputeMode mode);
     ~ParticleSystem();
 
     enum ParticleConfig {
@@ -116,6 +124,7 @@ protected: // methods
     void zcomputeDensities();
     void zcomputeForces();
     void zparticleCollisions();
+    void zintegrate(float deltaTime);
     uint coord2zIndex(Vector3i coord);
     Vector3i zIndex2coord(uint z_index);
     uint get_Z_index(Particle p);
@@ -131,6 +140,8 @@ protected: // methods
     void computeCollision(Particle& pi, const Particle& pj);
 
     std::vector<uint> getNeighbors(uint z_index);
+
+    void dumpBenchmark(long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t);
 protected: // data
     bool m_bInitialized;
     uint m_numParticles;
@@ -152,13 +163,21 @@ protected: // data
     uint   m_posVbo;            // vertex buffer object for particle positions
     uint   m_colorVBO;          // vertex buffer object for colors
 
+    struct cudaGraphicsResource* m_cuda_posvbo_resource; // handles OpenGL-CUDA exchange
+
     // params
     SimParams m_params;
     float3 m_boxDims;
 
-    StopWatchInterface* m_timer;
+    // Timers
+    std::chrono::time_point<std::chrono::steady_clock> m_timer_start, m_timer_curr;
+    double m_global_time;
+
+    // Output file
+    std::ofstream m_benchmark_file;
 
     uint m_solverIterations;
+    ParticleComputeMode m_compute_mode;
 };
 
 #endif // __PARTICLESYSTEM_H__
