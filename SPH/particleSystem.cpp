@@ -704,38 +704,9 @@ ParticleSystem::update(float deltaTime) {
             TIME_FUNCTION(s_time, cudaSortParticles(m_d_particles, m_numParticles));
 
             TIME_FUNCTION(cbg_time, cudaConstructBGrid(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_params));
-            
-            //copyArrayFromDevice(m_h_B, (void*)m_d_B, m_h_B_size * sizeof(Grid_item));
-            //TIME_FUNCTION(cbpg_time, constructGridArrayAlt());
-            //std::memset(m_particles.data(), 0, m_numParticles);
-            //m_numParticles = 16;
-            //for (int i = 0; i < 9; i++) m_particles[i].zindex = 0;
-            //for (int i = 0; i < 3; i++) m_particles[9+i].zindex = 4;
-            //for (int i = 0; i < 3; i++) m_particles[12+i].zindex = 6;
-            //for (int i = 0; i < 1; i++) m_particles[15+i].zindex = 7;
-
-            //std::memset(m_h_B, 0, m_h_B_size * sizeof(Grid_item));
-            //m_h_B[0].start = 0;
-            //m_h_B[0].nParticles = 9;
-            //m_h_B[4].start = 9;
-            //m_h_B[4].nParticles = 3;
-            //m_h_B[6].start = 12;
-            //m_h_B[6].nParticles = 3;
-            //m_h_B[7].start = 15;
-            //m_h_B[7].nParticles = 1;
-            //copyArrayToDevice(m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
-            //copyArrayToDevice(m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
-
 
             // place particles into their grid indices and sort particles according to cell indices
             TIME_FUNCTION(cbpg_time, cudaConstructGridArray(m_d_particles, m_numParticles, m_d_B, m_h_B_size, &m_d_B_prime, &m_h_B_prime_size, m_d_params));
-
-            //m_h_B_prime = new Grid_item[m_numParticles];
-            //copyArrayFromDevice(m_h_B_prime, (void*)m_d_B_prime, m_h_B_prime_size * sizeof(Grid_item));
-            //copyArrayFromDevice(m_h_B, (void*)m_d_B, m_h_B_size * sizeof(Grid_item));
-            //printZGrid(m_h_B, m_h_B_prime, m_h_B_prime_size);
-            //printf("\nB' size %d\n", m_h_B_prime_size);
-            //delete[] m_h_B_prime;
 
             // copmute density and pressure for every particle
             TIME_FUNCTION(d_time, cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
@@ -750,7 +721,6 @@ ParticleSystem::update(float deltaTime) {
             float* m_dPos = (float*)mapGLBufferObject(&m_cuda_posvbo_resource);
             TIME_FUNCTION(i_time, cudaIntegrate(m_dPos, deltaTime, m_d_particles, m_numParticles, m_d_params));
 
-            // free z_grid_prime (b_prime)
             auto __start = std::chrono::steady_clock::now();
             unmapGLBufferObject(m_cuda_posvbo_resource);
             auto __end = std::chrono::steady_clock::now();

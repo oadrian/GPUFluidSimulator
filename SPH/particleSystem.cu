@@ -369,7 +369,6 @@ __global__ void kernelConstructBPrimeGrid(Particle* dev_particles, uint dev_num_
 			dev_B_prime[b_prime_dex].start = index;
 			dev_B_prime[b_prime_dex].nParticles = umin(GRID_COMPACT_WIDTH, dev_B[zind].nParticles - localIndex);
 		}
-		//atomicAdd(&(dev_B_prime[b_prime_dex].nParticles), 1);
 	}
 }
 
@@ -517,25 +516,12 @@ extern "C" {
 		allocateArray((void**)&prime_blocks, dev_b_size * sizeof(int));
 		checkCudaErrors(cudaMemset(prime_blocks, 0, dev_b_size * sizeof(int)));
 		kernelGetBBlocks <<<counting_blocks, GRID_COMPACT_WIDTH>>> (dev_B, prime_blocks, dev_b_size);
-		//printf("prime_blocks\n");
-		//for (int i = 0; i < dev_b_size; i++) {
-		//	int x;
-		//	checkCudaErrors(cudaMemcpy((void*)&x, &prime_blocks[i], sizeof(int), cudaMemcpyDeviceToHost));
-		//	printf("%d ", x);
-		//}
 		int last_block;
 		checkCudaErrors(cudaMemcpy(&last_block, &prime_blocks[dev_b_size - 1], sizeof(int), cudaMemcpyDeviceToHost));
 		thrust::device_ptr<int> t_prime_blocks = thrust::device_pointer_cast(prime_blocks);
 		thrust::exclusive_scan(t_prime_blocks, t_prime_blocks + dev_b_size, t_prime_blocks);
 		checkCudaErrors(cudaMemcpy((void*)dev_B_prime_size, &prime_blocks[dev_b_size - 1], sizeof(int), cudaMemcpyDeviceToHost));
 		*dev_B_prime_size += last_block;
-		//printf("\nexclusive_scan\n");
-		//for (int i = 0; i < dev_b_size; i++) {
-		//	int x;
-		//	checkCudaErrors(cudaMemcpy((void*)&x, &prime_blocks[i], sizeof(int), cudaMemcpyDeviceToHost));
-		//	printf("%d ", x);
-		//}
-		//printf("\n");
 		//// fill the B' grid
 		kernelConstructBPrimeGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, *dev_B_prime, *dev_B_prime_size, params, prime_blocks);
 		freeArray(prime_blocks);
