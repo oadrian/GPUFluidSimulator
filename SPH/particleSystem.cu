@@ -346,17 +346,13 @@ __global__ void kernelGetBBlocks(Grid_item* dev_B, int* blocks, uint dev_b_size)
 	blocks[index] = prime_blocks;
 }
 
-__global__ void kernelConstructBPrimeGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params) {
+__global__ void kernelConstructBPrimeGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item* dev_B_prime, uint dev_B_prime_size, SimParams* params, int *blocks_below) {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	Particle* me, * neighbor;
 	if (index == 0) {
 		me = &dev_particles[index];
-		uint zind = me->zindex;
-		int particleStartingIndex = dev_B[zind].start;
-		int localIndex = index - particleStartingIndex;
-		int b_prime_dex = numBlocksBelow(zind, dev_B) + (localIndex / GRID_COMPACT_WIDTH);
-		dev_B_prime[b_prime_dex].start = 0;
-		atomicAdd(&(dev_B_prime[b_prime_dex].nParticles), 1);
+		dev_B_prime[0].start = 0;
+		atomicAdd(&(dev_B_prime[0].nParticles), 1);
 	}
 	else if (index < dev_num_particles) {
 		me = &dev_particles[index];
@@ -365,14 +361,14 @@ __global__ void kernelConstructBPrimeGrid(Particle* dev_particles, uint dev_num_
 		uint neighborZind = neighbor->zindex;
 		int particleStartingIndex = dev_B[zind].start;
 		int localIndex = index - particleStartingIndex;
-		int b_prime_dex = numBlocksBelow(zind, dev_B) + (localIndex / GRID_COMPACT_WIDTH);
-		int neighborParticleStartingIndex = dev_B[zind].start;
+		int b_prime_dex = blocks_below[zind] + (localIndex / GRID_COMPACT_WIDTH);
+		int neighborParticleStartingIndex = dev_B[neighborZind].start;
 		int neighborLocalIndex = index - 1 - neighborParticleStartingIndex;
-		int neighbor_b_prime_dex = numBlocksBelow(neighborZind, dev_B) + (neighborLocalIndex / GRID_COMPACT_WIDTH);
+		int neighbor_b_prime_dex = blocks_below[neighborZind] + (neighborLocalIndex / GRID_COMPACT_WIDTH);
 		if (b_prime_dex != neighbor_b_prime_dex) {
 			dev_B_prime[b_prime_dex].start = index;
 		}
-		atomicAdd(&(dev_B_prime[zind].nParticles), 1);
+		atomicAdd(&(dev_B_prime[b_prime_dex].nParticles), 1);
 	}
 }
 
@@ -520,20 +516,15 @@ extern "C" {
 		allocateArray((void**)&prime_blocks, dev_b_size * sizeof(int));
 		checkCudaErrors(cudaMemset(prime_blocks, 0, dev_b_size * sizeof(int)));
 		kernelGetBBlocks <<<counting_blocks, GRID_COMPACT_WIDTH>>> (dev_B, prime_blocks, dev_b_size);
+		int last_block;
+		checkCudaErrors(cudaMemcpy(&last_block, &prime_blocks[dev_b_size - 1], sizeof(int), cudaMemcpyDeviceToHost));
 		thrust::device_ptr<int> t_prime_blocks = thrust::device_pointer_cast(prime_blocks);
-		printf("%d\n", dev_b_size);
-		thrust::inclusive_scan(t_prime_blocks, t_prime_blocks + dev_b_size, t_prime_blocks);
-		int B_prime_size;
-		checkCudaErrors(cudaMemcpy((void*)&B_prime_size, &prime_blocks[dev_b_size - 1], sizeof(int), cudaMemcpyDeviceToHost));
-		printf("B_prime_size %d", B_prime_size);
-		int *host_blocks = (int*)malloc(dev_b_size * sizeof(int));
-		cudaMemcpy((void*)host_blocks, (void*)prime_blocks, dev_b_size * sizeof(int), cudaMemcpyDeviceToHost);
-		*dev_B_prime_size = host_blocks[dev_b_size - 1];
-		//// allocate the B' grid, free the old one, and point the pointer back to it
-		//allocateArray((void**)dev_B_prime, *dev_B_prime_size * sizeof(Grid_item));
+		thrust::exclusive_scan(t_prime_blocks, t_prime_blocks + dev_b_size, t_prime_blocks);
+		checkCudaErrors(cudaMemcpy((void*)dev_B_prime_size, &prime_blocks[dev_b_size - 1], sizeof(int), cudaMemcpyDeviceToHost));
+		*dev_B_prime_size += last_block;
 		//// fill the B' grid
-		kernelConstructBPrimeGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, *dev_B_prime, *dev_B_prime_size, params);
-		free(host_blocks);
+		kernelConstructBPrimeGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, *dev_B_prime, *dev_B_prime_size, params, prime_blocks);
+		freeArray(prime_blocks);
 	}
 
 	void cudaIntegrate(float *gl_pos, float deltaTime, Particle* dev_particles, uint dev_num_particles, SimParams* params) {
