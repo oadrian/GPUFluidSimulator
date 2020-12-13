@@ -2,6 +2,7 @@
 #include "particles_kernel.cuh"
 extern "C"
 {
+	uint iceildiv(uint num, uint denom);
 	void cudaInit(int argc, char** argv);
 
 	void allocateArray(void** devPtr, size_t size);

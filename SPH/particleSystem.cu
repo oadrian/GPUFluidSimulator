@@ -403,6 +403,10 @@ __global__ void kernelIntegrate(float* gl_pos, float deltaTime, Particle* dev_pa
 }
 
 extern "C" {
+	uint iceildiv(uint num, uint denom) {
+		return (num % denom == 0) ? num / denom : 1 + (num / denom);
+	}
+
 	void cudaInit(int argc, char** argv) {
 		int devID;
 
@@ -468,7 +472,7 @@ extern "C" {
 	}
 
 	void cudaMapZIndex(Particle* dev_particles, uint dev_num_particles, SimParams* params) {
-		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
+		int blocks = iceildiv(dev_num_particles, GRID_COMPACT_WIDTH);
 		// set particles' z indices
 		kernelGetZIndex <<<blocks, GRID_COMPACT_WIDTH >>> (dev_particles, dev_num_particles, params);
 	}
@@ -480,7 +484,7 @@ extern "C" {
 	}
 
 	void cudaConstructBGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, SimParams* params) {
-		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
+		int blocks = iceildiv(dev_num_particles, GRID_COMPACT_WIDTH);
 		// clear the previous grid arrays
 		checkCudaErrors(cudaMemset(dev_B, 0, dev_b_size * sizeof(Grid_item)));
 		// set the B grid
@@ -488,9 +492,9 @@ extern "C" {
 	}
 
 	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item** dev_B_prime, uint* dev_B_prime_size, SimParams* params) {
-		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
+		int blocks = iceildiv(dev_num_particles, GRID_COMPACT_WIDTH);
 		// find the size of the B' grid
-		int counting_blocks = ceil(dev_b_size / GRID_COMPACT_WIDTH);
+		int counting_blocks = iceildiv(dev_b_size, GRID_COMPACT_WIDTH);
 		int* prime_blocks;
 		allocateArray((void**)&prime_blocks, dev_b_size * sizeof(int));
 		checkCudaErrors(cudaMemset(prime_blocks, 0, dev_b_size * sizeof(int)));
