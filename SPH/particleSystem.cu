@@ -305,7 +305,7 @@ __global__ void kernelGetZIndex(Particle* dev_particles, uint dev_num_particles,
 
 	Particle *p = &dev_particles[index];
 	p->zindex = get_Z_index(*p, params);
-	if (index == 0) printf("cuda %d\n", p->zindex);
+	
 }
 
 __global__ void kernelConstructBGrid(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, SimParams* params) {
@@ -467,7 +467,7 @@ extern "C" {
 	}
 
 	void cudaMapZIndex(Particle* dev_particles, uint dev_num_particles, SimParams* params) {
-		uint blocks = (dev_num_particles % GRID_COMPACT_WIDTH == 0) ? dev_num_particles / GRID_COMPACT_WIDTH : 1 + (dev_num_particles / GRID_COMPACT_WIDTH);
+		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
 		// set particles' z indices
 		kernelGetZIndex << <blocks, GRID_COMPACT_WIDTH >> > (dev_particles, dev_num_particles, params);
 	}

@@ -50,14 +50,15 @@ ParticleSystem::ParticleSystem(uint numParticles, float3 boxDims, ParticleComput
     // set simulation parameters
     m_params.particleRadius = 1.0f / 64.0f;
     m_params.colliderPos = make_float3(-1.2f, -0.8f, 0.8f);
+    m_params.gravity = make_float3(0.f, 0.f, 0.f);
     m_params.colliderRadius = 0.2f;
-    m_params.gravity = make_float3(0.0f, -0.0003f, 0.0f);
     m_params.boxMin.x = -boxDims.x / 2;
     m_params.boxMin.y = -boxDims.y / 2;
     m_params.boxMin.z = -boxDims.z / 2;
     m_params.boxMax.x = boxDims.x / 2;
     m_params.boxMax.y = boxDims.y / 2;
     m_params.boxMax.z = boxDims.z / 2;
+    m_params.boxDims = boxDims;
     m_params.gridDim = m_h_B_dim;
 
     _initialize(numParticles);
@@ -530,7 +531,6 @@ uint ParticleSystem::get_Z_index(Particle p) {
     coord.x() = floor((posX / m_boxDims.x) * m_h_B_dim);
     coord.y() = floor((posY / m_boxDims.y) * m_h_B_dim);
     coord.z() = floor((posZ / m_boxDims.z) * m_h_B_dim);
-    
     return coord2zIndex(coord);
 }
 
@@ -701,22 +701,11 @@ ParticleSystem::update(float deltaTime) {
         else {
             assert(m_compute_mode == CUDA_PARALLEL);
             // CUDA IMLPEMENTATION
-            /*for (Particle& p : m_particles) {
-                p.zindex = get_Z_index(p);
-            }*/
-
-            copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
-
             cudaMapZIndex(m_d_particles, m_numParticles, m_d_params);
 
             cudaSortParticles(m_d_particles, m_numParticles);
 
             copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
-
-            for (Particle& p : m_particles) {
-                printf("%d %d\n", p.zindex, get_Z_index(p));
-                assert(p.zindex == get_Z_index(p));
-            }
 
             // place particles into their grid indices and sort particles according to cell indices
             constructGridArrayAlt();
@@ -735,8 +724,6 @@ ParticleSystem::update(float deltaTime) {
             // integrates velocity and position based on forces
             float* m_dPos = (float*)mapGLBufferObject(&m_cuda_posvbo_resource);
             TIME_FUNCTION(i_time, cudaIntegrate(m_dPos, deltaTime, m_d_particles, m_numParticles, m_d_params));
-            // Copy Particles back to host 
-            copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
 
             // free z_grid_prime (b_prime)
             delete[] m_h_B_prime;
