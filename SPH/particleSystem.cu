@@ -466,7 +466,7 @@ extern "C" {
 		kernelComputeCollisions <<<dev_B_prime_size, GRID_COMPACT_WIDTH>>>(dev_particles, dev_num_particles, dev_B, dev_B_prime, params);
 	}
 
-	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item* dev_B_prime, uint* dev_B_prime_size, SimParams* params) {
+	void cudaConstructGridArray(Particle* dev_particles, uint dev_num_particles, Grid_item* dev_B, uint dev_b_size, Grid_item** dev_B_prime, uint* dev_B_prime_size, SimParams* params) {
 		int blocks = ceil(dev_num_particles / GRID_COMPACT_WIDTH);
 		// set particles' z indices
 		kernelGetZIndex <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, params);
@@ -490,10 +490,10 @@ extern "C" {
 		// allocate the B' grid, free the old one, and point the pointer back to it
 		Grid_item* new_B_prime;
 		allocateArray((void**)&new_B_prime, *dev_B_prime_size * sizeof(Grid_item));
-		freeArray((void*)dev_B_prime);
-		dev_B_prime = new_B_prime;
+		freeArray((void*)*dev_B_prime);
+		*dev_B_prime = new_B_prime;
 		// fill the B' grid
-		kernelConstructBPrimeGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, dev_B_prime, *dev_B_prime_size, params);
+		kernelConstructBPrimeGrid <<<blocks, GRID_COMPACT_WIDTH>>> (dev_particles, dev_num_particles, dev_B, dev_b_size, *dev_B_prime, *dev_B_prime_size, params);
 		free(host_blocks);
 	}
 

@@ -617,7 +617,7 @@ ParticleSystem::update(float deltaTime) {
     assert(m_bInitialized);
     omp_set_num_threads(omp_get_max_threads());
     copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
-    //copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
+    copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
     //copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
     for (int iter = 0; iter < m_solverIterations; iter++) {
         long long d_time, f_time, pc_time, i_time, total_time;
@@ -659,14 +659,12 @@ ParticleSystem::update(float deltaTime) {
             // CUDA IMLPEMENTATION
             // place particles into their grid indices and sort particles according to cell indices
             //constructGridArray();
-            printf("here\n");
             // Copy Particles Array over to GPU 
-            copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
+            //copyArrayToDevice((void*)m_d_particles, m_particles.data(), m_numParticles * sizeof(Particle));
             // Copy B Array over to GPU
-            copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
+            //copyArrayToDevice((void*)m_d_B, m_h_B, m_h_B_size * sizeof(Grid_item));
             // place particles into their grid indices and sort particles according to cell indices
-            cudaConstructGridArray(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, &m_h_B_prime_size, m_d_params);
-            printf("uh\n");
+            cudaConstructGridArray(m_d_particles, m_numParticles, m_d_B, m_h_B_size, &m_d_B_prime, &m_h_B_prime_size, m_d_params);
             // copmute density and pressure for every particle
             TIME_FUNCTION(d_time, cudaComputeDensities(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_B_prime, m_h_B_prime_size, m_d_params));
 
@@ -679,13 +677,12 @@ ParticleSystem::update(float deltaTime) {
             // integrates velocity and position based on forces
             float* m_dPos = (float*)mapGLBufferObject(&m_cuda_posvbo_resource);
             TIME_FUNCTION(i_time, cudaIntegrate(m_dPos, deltaTime, m_d_particles, m_numParticles, m_d_params));
-            printf("all this done\n");
             // Copy Particles back to host 
-            copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
+            //copyArrayFromDevice(m_particles.data(), (void*)m_d_particles, m_numParticles * sizeof(Particle));
 
             // free z_grid_prime (b_prime)
-            delete[] m_h_B_prime;
-            freeArray(m_d_B_prime);
+            //delete[] m_h_B_prime;
+            //freeArray(m_d_B_prime);
             unmapGLBufferObject(m_cuda_posvbo_resource);
         }
         auto e = std::chrono::steady_clock::now();
