@@ -61,6 +61,11 @@ def main():
     avgs = calculate_averages(benchmark_file)
     for field in avgs:
         print(field, round(avgs[field], 2), ", ", end="")
+    print("\n")
+    for field in avgs:
+        if(field == "total" or field == "fps"):
+            continue
+        print(field, round(100* avgs[field]/avgs["total"], 2), ", ", end = "")
 
 
 if __name__ == "__main__":
