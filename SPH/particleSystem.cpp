@@ -624,7 +624,7 @@ void printZGrid(Grid_item *m_h_B, Grid_item *m_h_B_prime, uint m_h_B_prime_size)
     }
 }
 
-void ParticleSystem::dumpBenchmark(long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t) {
+void ParticleSystem::dumpBenchmark(float fps, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t) {
     m_timer_curr = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_timer_curr - m_timer_start);
     if (duration.count() > BENCHMARK_FREQ) {
@@ -634,7 +634,7 @@ void ParticleSystem::dumpBenchmark(long long d_t, long long f_t, long long pc_t,
     }
 }
 
-void ParticleSystem::dumpBenchmark(long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_t) {
+void ParticleSystem::dumpBenchmark(float fps, long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_t) {
     m_timer_curr = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_timer_curr - m_timer_start);
     if (duration.count() > BENCHMARK_FREQ) {
@@ -650,13 +650,14 @@ void ParticleSystem::dumpBenchmark(long long z_t, long long s_t, long long cbg_t
             "ns,\t\tforce:" << f_t << 
             "ns,\t\tcollision:" << pc_t << 
             "ns,\t\tintegrate:" << i_t << 
-            "ns" << std::endl;
+            "ns,\t\tFPS:" << fps <<
+            "fps" << std::endl;
     }
 }
 
 // step the simulation
 void
-ParticleSystem::update(float deltaTime) {
+ParticleSystem::update(float deltaTime, float fps) {
     assert(m_bInitialized);
     omp_set_num_threads(omp_get_max_threads());
     copyArrayToDevice((void*)m_d_params, &m_params, sizeof(SimParams));
@@ -730,10 +731,10 @@ ParticleSystem::update(float deltaTime) {
         total_time = (e - s).count();
         // dump to file
         if (m_compute_mode == CUDA_PARALLEL) {
-            dumpBenchmark(zi_time, s_time, cbg_time, cbpg_time, d_time, f_time, pc_time, i_time, total_time, cp_time);
+            dumpBenchmark(fps, zi_time, s_time, cbg_time, cbpg_time, d_time, f_time, pc_time, i_time, total_time, cp_time);
         }
         else {
-            dumpBenchmark(d_time, f_time, pc_time, i_time, total_time);
+            dumpBenchmark(fps, d_time, f_time, pc_time, i_time, total_time);
         }
     }
 

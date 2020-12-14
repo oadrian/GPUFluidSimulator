@@ -12,7 +12,7 @@
 #ifndef __PARTICLESYSTEM_H__
 #define __PARTICLESYSTEM_H__
 #define BENCHMARK_FUNCTIONS
-#define NUM_PARTICLES   100000
+#define NUM_PARTICLES   100
 #define OMP_CHUNK 4
 #define OMP_INTEGRATE_CHUNK 64
 #define FILE_PREFIX "benchmark_"
@@ -67,7 +67,7 @@ public:
         VELOCITY,
     };
 
-    void update(float deltaTime);
+    void update(float deltaTime, float fps);
     void reset(ParticleConfig config);
 
     int    getNumParticles() const {
@@ -146,8 +146,8 @@ protected: // methods
 
     std::vector<uint> getNeighbors(uint z_index);
 
-    void dumpBenchmark(long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t);
-    void dumpBenchmark(long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_time);
+    void dumpBenchmark(float fps, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t);
+    void dumpBenchmark(float fps, long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_time);
 protected: // data
     bool m_bInitialized;
     uint m_numParticles;
