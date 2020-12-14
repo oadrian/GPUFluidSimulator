@@ -684,7 +684,13 @@ void ParticleSystem::dumpBenchmark(float fps, long long d_t, long long f_t, long
     if (duration.count() > BENCHMARK_FREQ) {
         m_timer_start = m_timer_curr;
         m_global_time += duration.count();
-        m_benchmark_file << m_global_time / 1000 << "sec" << "\ttotal:" << t_t << "ns,\t\tdens:" << d_t << "ns,\t\tforce:" << f_t << "ns,\t\tcollision:" << pc_t << "ns,\t\tintegrate:" << i_t << "ns" << std::endl;
+        m_benchmark_file << m_global_time / 1000 << "sec" << "\ttotal:" << t_t << 
+            "ns,\t\tdens:" << d_t << 
+            "ns,\t\tforce:" << f_t << 
+            "ns,\t\tcollision:" << pc_t << 
+            "ns,\t\tintegrate:" << i_t << 
+            "ns,\t\tFPS:" << fps <<
+            "fps" << std::endl;
     }
 }
 
