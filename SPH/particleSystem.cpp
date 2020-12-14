@@ -541,6 +541,60 @@ bool cmpParticles(Particle pi, Particle pj) {
     return (pi.zindex < pj.zindex);
 }
 
+void ParticleSystem::zMapZindex() {
+    // set each particle's z-index
+    for (Particle& p : m_particles) {
+        p.zindex = get_Z_index(p);
+    }
+}
+
+void ParticleSystem::zSortParticles() {
+    // sort the particles vector according to the z index
+    std::sort(m_particles.begin(), m_particles.end(), cmpParticles);
+}
+
+void ParticleSystem::zConstructBGrid() {
+    // clear prev grid array
+    std::memset(m_h_B, 0, m_h_B_size * sizeof(Grid_item));
+    // set the grid array where each item has the starting index into the particles
+    // vector and the number of particles that block in the grid contains
+    long long grid_dex = -1;
+    for (int i = 0; i < m_particles.size(); i++) {
+        Particle p = m_particles[i];
+        //printf("p is at zindex %d\n", p.zindex);
+        unsigned long long zind = p.zindex;
+        if (zind != grid_dex) {
+            // found a new block of particles
+            grid_dex = zind;
+            m_h_B[grid_dex].start = i;
+            m_h_B[grid_dex].nParticles = 1;
+            //printf("Found a new block at %d\n", i);  
+        }
+        else {
+            m_h_B[grid_dex].nParticles++; // still in same block, increment particles
+            //printf("Incremented %d to %d particles\n", grid_dex, m_h_B[grid_dex].nParticles);
+        }
+    }
+}
+
+void ParticleSystem::zConstructGridArray() {
+    // compact z_grid
+    std::vector<Grid_item> grid;
+    for (int i = 0; i < m_h_B_size; i++) {
+        uint iter = 0;
+        while (iter < m_h_B[i].nParticles) {
+            Grid_item gi;
+            gi.start = iter + m_h_B[i].start;
+            gi.nParticles = std::min(GRID_COMPACT_WIDTH, m_h_B[i].nParticles - iter);
+            grid.push_back(gi);
+            iter += GRID_COMPACT_WIDTH;
+        }
+    }
+    m_h_B_prime_size = grid.size();
+    m_h_B_prime = new Grid_item[m_h_B_prime_size];
+    std::memcpy((void*)m_h_B_prime, grid.data(), m_h_B_prime_size * sizeof(Grid_item));
+}
+
 void ParticleSystem::constructGridArray() {
     // set each particle's z-index
     for (Particle& p : m_particles) {
@@ -679,8 +733,17 @@ ParticleSystem::update(float deltaTime, float fps) {
         }
         else if (m_compute_mode == OMP_PARALLEL) {
             // OPENMP IMPLEMENTATION
-            // place particles into their grid indices and sort particles according to cell indices
-            constructGridArray();
+            // Map each particle to their z index
+            TIME_FUNCTION(zi_time, zMapZindex());
+
+            // Sort the particles by zindex
+            TIME_FUNCTION(s_time, zSortParticles());
+
+            // construct the B grid array
+            TIME_FUNCTION(cbg_time, zConstructBGrid());
+
+            // construct the B' grid array
+            TIME_FUNCTION(cbpg_time, zConstructGridArray());
 
             // N^2 algorithm for calculating density for each particle, computes pressure as well
             TIME_FUNCTION(d_time, zcomputeDensities());
@@ -700,13 +763,16 @@ ParticleSystem::update(float deltaTime, float fps) {
         else {
             assert(m_compute_mode == CUDA_PARALLEL);
             // CUDA IMLPEMENTATION
+            // Map each particle to their z index
             TIME_FUNCTION(zi_time, cudaMapZIndex(m_d_particles, m_numParticles, m_d_params));
 
+            // Sort the particles by zindex
             TIME_FUNCTION(s_time, cudaSortParticles(m_d_particles, m_numParticles));
 
+            // construct the B grid array
             TIME_FUNCTION(cbg_time, cudaConstructBGrid(m_d_particles, m_numParticles, m_d_B, m_h_B_size, m_d_params));
 
-            // place particles into their grid indices and sort particles according to cell indices
+            // construct the B' grid array
             TIME_FUNCTION(cbpg_time, cudaConstructGridArray(m_d_particles, m_numParticles, m_d_B, m_h_B_size, &m_d_B_prime, &m_h_B_prime_size, m_d_params));
 
             // copmute density and pressure for every particle
@@ -730,7 +796,7 @@ ParticleSystem::update(float deltaTime, float fps) {
         auto e = std::chrono::steady_clock::now();
         total_time = (e - s).count();
         // dump to file
-        if (m_compute_mode == CUDA_PARALLEL) {
+        if (m_compute_mode == CUDA_PARALLEL || m_compute_mode == OMP_PARALLEL) {
             dumpBenchmark(fps, zi_time, s_time, cbg_time, cbpg_time, d_time, f_time, pc_time, i_time, total_time, cp_time);
         }
         else {

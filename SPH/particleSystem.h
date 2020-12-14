@@ -125,6 +125,10 @@ protected: // methods
     void particleCollisions();
     void integrate(float deltaTime);
 
+    void zMapZindex();
+    void zSortParticles();
+    void zConstructBGrid();
+    void zConstructGridArray();
     void zcomputeDensities();
     void zcomputeForces();
     void zparticleCollisions();
