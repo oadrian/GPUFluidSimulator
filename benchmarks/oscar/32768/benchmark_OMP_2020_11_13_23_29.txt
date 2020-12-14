@@ -1,0 +1,26 @@
+SPH Particle Simulation Benchmark
+Compute mode: OMP
+2.043sec	total:86049200ns,		copying:0ns,		z-index:1087500ns,		sort:4403000ns,		b-grid:109800ns,		b'-grid:61200ns,		dens:29814000ns,		force:40605800ns,		collision:9597500ns,		integrate:368100ns,		FPS:12.5201fps
+4.063sec	total:76538100ns,		copying:0ns,		z-index:1019000ns,		sort:4432600ns,		b-grid:119400ns,		b'-grid:69100ns,		dens:23504200ns,		force:37629000ns,		collision:9392900ns,		integrate:369900ns,		FPS:13.1169fps
+6.078sec	total:67854000ns,		copying:0ns,		z-index:1174600ns,		sort:4647800ns,		b-grid:160500ns,		b'-grid:70700ns,		dens:20085900ns,		force:32377000ns,		collision:8977400ns,		integrate:358300ns,		FPS:14.7047fps
+8.141sec	total:89429500ns,		copying:0ns,		z-index:1050700ns,		sort:4951600ns,		b-grid:130400ns,		b'-grid:72700ns,		dens:31285900ns,		force:41389200ns,		collision:10209400ns,		integrate:336700ns,		FPS:11.0542fps
+10.166sec	total:81880700ns,		copying:0ns,		z-index:1039300ns,		sort:4562200ns,		b-grid:117000ns,		b'-grid:73100ns,		dens:28237000ns,		force:39605500ns,		collision:7846500ns,		integrate:398100ns,		FPS:11.1391fps
+12.229sec	total:66941500ns,		copying:0ns,		z-index:1098800ns,		sort:4477400ns,		b-grid:151500ns,		b'-grid:67200ns,		dens:25018200ns,		force:29867900ns,		collision:6050900ns,		integrate:207200ns,		FPS:14.4393fps
+14.271sec	total:67227500ns,		copying:0ns,		z-index:1033300ns,		sort:4417300ns,		b-grid:111800ns,		b'-grid:64700ns,		dens:25898500ns,		force:29456200ns,		collision:6029300ns,		integrate:214600ns,		FPS:15.3237fps
+16.29sec	total:64768200ns,		copying:0ns,		z-index:1097500ns,		sort:4428800ns,		b-grid:110500ns,		b'-grid:62000ns,		dens:24119000ns,		force:28035500ns,		collision:6527700ns,		integrate:385500ns,		FPS:15.4813fps
+18.3sec	total:64419900ns,		copying:0ns,		z-index:1143000ns,		sort:4461200ns,		b-grid:114000ns,		b'-grid:62000ns,		dens:23911700ns,		force:27481100ns,		collision:6876400ns,		integrate:368500ns,		FPS:16.2779fps
+20.316sec	total:67298000ns,		copying:0ns,		z-index:1051900ns,		sort:4430900ns,		b-grid:111500ns,		b'-grid:61600ns,		dens:24355300ns,		force:30985900ns,		collision:6095800ns,		integrate:203400ns,		FPS:15.2602fps
+22.369sec	total:60040700ns,		copying:0ns,		z-index:1110600ns,		sort:4439900ns,		b-grid:104900ns,		b'-grid:65400ns,		dens:16646800ns,		force:30086400ns,		collision:7196800ns,		integrate:387900ns,		FPS:15.2984fps
+24.38sec	total:78504800ns,		copying:0ns,		z-index:1104200ns,		sort:4497400ns,		b-grid:102500ns,		b'-grid:69200ns,		dens:27101400ns,		force:35929100ns,		collision:9322500ns,		integrate:376100ns,		FPS:15.731fps
+26.425sec	total:60520700ns,		copying:0ns,		z-index:1067000ns,		sort:4457400ns,		b-grid:110000ns,		b'-grid:62200ns,		dens:17503300ns,		force:30832000ns,		collision:6083600ns,		integrate:403200ns,		FPS:15.0421fps
+28.444sec	total:66429900ns,		copying:0ns,		z-index:1125200ns,		sort:4494200ns,		b-grid:108400ns,		b'-grid:66800ns,		dens:22748900ns,		force:31736600ns,		collision:5942600ns,		integrate:204200ns,		FPS:13.2318fps
+30.481sec	total:59048300ns,		copying:0ns,		z-index:1090800ns,		sort:4485300ns,		b-grid:120900ns,		b'-grid:65000ns,		dens:18990800ns,		force:25583900ns,		collision:8492200ns,		integrate:217000ns,		FPS:14.7334fps
+32.484sec	total:61318200ns,		copying:0ns,		z-index:1144600ns,		sort:4481800ns,		b-grid:115700ns,		b'-grid:63500ns,		dens:23547500ns,		force:25027800ns,		collision:6726400ns,		integrate:209200ns,		FPS:15.1515fps
+34.525sec	total:60824200ns,		copying:0ns,		z-index:1150000ns,		sort:4488600ns,		b-grid:111100ns,		b'-grid:66000ns,		dens:21789900ns,		force:24717000ns,		collision:8290900ns,		integrate:208400ns,		FPS:15.3262fps
+36.578sec	total:61258800ns,		copying:0ns,		z-index:1055900ns,		sort:4416600ns,		b-grid:110000ns,		b'-grid:64800ns,		dens:19618500ns,		force:27695600ns,		collision:8092700ns,		integrate:202200ns,		FPS:15.1442fps
+38.589sec	total:64007200ns,		copying:0ns,		z-index:1139700ns,		sort:4457000ns,		b-grid:116500ns,		b'-grid:64000ns,		dens:20390100ns,		force:30499100ns,		collision:7132700ns,		integrate:205700ns,		FPS:14.7693fps
+40.595sec	total:59796800ns,		copying:0ns,		z-index:1161000ns,		sort:4471700ns,		b-grid:113900ns,		b'-grid:66600ns,		dens:20887300ns,		force:25636900ns,		collision:7077900ns,		integrate:379100ns,		FPS:14.5687fps
+42.66sec	total:73145800ns,		copying:0ns,		z-index:873700ns,		sort:4421500ns,		b-grid:98600ns,		b'-grid:72200ns,		dens:20927000ns,		force:36529500ns,		collision:10012800ns,		integrate:208000ns,		FPS:15.2177fps
+44.691sec	total:67437700ns,		copying:0ns,		z-index:1132400ns,		sort:4468600ns,		b-grid:110700ns,		b'-grid:71800ns,		dens:21029000ns,		force:31302600ns,		collision:8957200ns,		integrate:363100ns,		FPS:15.5485fps
+46.764sec	total:84221500ns,		copying:0ns,		z-index:1141500ns,		sort:4473900ns,		b-grid:106600ns,		b'-grid:66200ns,		dens:29696800ns,		force:39097300ns,		collision:9252000ns,		integrate:385000ns,		FPS:15.5728fps
+48.775sec	total:69665200ns,		copying:0ns,		z-index:1049000ns,		sort:4445900ns,		b-grid:117200ns,		b'-grid:67300ns,		dens:24124900ns,		force:30781800ns,		collision:8874500ns,		integrate:202900ns,		FPS:14.9902fps

@@ -1,0 +1,3 @@
+SPH Particle Simulation Benchmark
+Compute mode: sequential
+506.403sec	total:506370187900ns,		dens:192153128100ns,		force:250950819900ns,		collision:63262629200ns,		integrate:3610400ns,		FPS:0fps

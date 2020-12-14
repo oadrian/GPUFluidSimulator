@@ -1,0 +1,24 @@
+SPH Particle Simulation Benchmark
+Compute mode: sequential
+2.07sec	total:130322900ns,		dens:48693700ns,		force:66328000ns,		collision:15248100ns,		integrate:52800ns,		FPS:7.64068fps
+4.183sec	total:133976400ns,		dens:50166400ns,		force:68195700ns,		collision:15561900ns,		integrate:52300ns,		FPS:7.60759fps
+6.298sec	total:129852900ns,		dens:48717800ns,		force:65990400ns,		collision:15091800ns,		integrate:52500ns,		FPS:7.62885fps
+8.391sec	total:128942400ns,		dens:48377200ns,		force:65483000ns,		collision:15029900ns,		integrate:52100ns,		FPS:7.68631fps
+10.484sec	total:130429100ns,		dens:49137500ns,		force:66327300ns,		collision:14911900ns,		integrate:52200ns,		FPS:7.66617fps
+12.588sec	total:129561900ns,		dens:48922700ns,		force:65537900ns,		collision:15049000ns,		integrate:52100ns,		FPS:7.64996fps
+14.691sec	total:132078400ns,		dens:48603500ns,		force:68508900ns,		collision:14914100ns,		integrate:51600ns,		FPS:7.66112fps
+16.769sec	total:129491300ns,		dens:48534500ns,		force:65815100ns,		collision:15089100ns,		integrate:52200ns,		FPS:7.73584fps
+18.857sec	total:130610600ns,		dens:49755700ns,		force:65766100ns,		collision:15036200ns,		integrate:52400ns,		FPS:7.69982fps
+20.95sec	total:133925400ns,		dens:48655700ns,		force:65790700ns,		collision:19425800ns,		integrate:52800ns,		FPS:7.70551fps
+23.039sec	total:129312100ns,		dens:48704600ns,		force:65509400ns,		collision:15045400ns,		integrate:52500ns,		FPS:7.70103fps
+25.128sec	total:129324200ns,		dens:48313500ns,		force:65876300ns,		collision:15081600ns,		integrate:52200ns,		FPS:7.6936fps
+27.21sec	total:129695700ns,		dens:48784300ns,		force:65812300ns,		collision:15046700ns,		integrate:52100ns,		FPS:7.72942fps
+29.299sec	total:129203900ns,		dens:48580800ns,		force:65567300ns,		collision:15003200ns,		integrate:52400ns,		FPS:7.72333fps
+31.354sec	total:129936600ns,		dens:48724000ns,		force:66113300ns,		collision:15047300ns,		integrate:51900ns,		FPS:7.65676fps
+33.45sec	total:129065800ns,		dens:48293100ns,		force:65645100ns,		collision:15074800ns,		integrate:52500ns,		FPS:7.69495fps
+35.536sec	total:129026300ns,		dens:48523300ns,		force:65526900ns,		collision:14924000ns,		integrate:52000ns,		FPS:7.72505fps
+37.619sec	total:128624300ns,		dens:48107500ns,		force:65510700ns,		collision:14954100ns,		integrate:51700ns,		FPS:7.73807fps
+39.703sec	total:129189800ns,		dens:48435400ns,		force:65670400ns,		collision:15031300ns,		integrate:52500ns,		FPS:7.72843fps
+41.801sec	total:129035000ns,		dens:48468400ns,		force:65507900ns,		collision:15005800ns,		integrate:52600ns,		FPS:7.63681fps
+43.882sec	total:129194500ns,		dens:48444300ns,		force:65644100ns,		collision:15053100ns,		integrate:52500ns,		FPS:7.72135fps
+45.959sec	total:128188600ns,		dens:48039000ns,		force:65176400ns,		collision:14920300ns,		integrate:52600ns,		FPS:7.73806fps

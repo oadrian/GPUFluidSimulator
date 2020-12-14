@@ -1,0 +1,25 @@
+SPH Particle Simulation Benchmark
+Compute mode: CUDA
+2.001sec	total:1014900ns,		copying:22400ns,		z-index:4000ns,		sort:51500ns,		b-grid:3600ns,		b'-grid:905800ns,		dens:1600ns,		force:1400ns,		collision:1400ns,		integrate:1500ns,		FPS:763.009fps
+4.003sec	total:1047300ns,		copying:35000ns,		z-index:2700ns,		sort:53800ns,		b-grid:3800ns,		b'-grid:908900ns,		dens:2000ns,		force:1900ns,		collision:1700ns,		integrate:1500ns,		FPS:780.61fps
+6.005sec	total:1026300ns,		copying:23900ns,		z-index:2800ns,		sort:50400ns,		b-grid:3800ns,		b'-grid:905300ns,		dens:1500ns,		force:1400ns,		collision:1300ns,		integrate:1400ns,		FPS:795.032fps
+8.007sec	total:1004700ns,		copying:21500ns,		z-index:2800ns,		sort:50400ns,		b-grid:3600ns,		b'-grid:897300ns,		dens:2500ns,		force:1500ns,		collision:1400ns,		integrate:1600ns,		FPS:822.797fps
+10.008sec	total:1086000ns,		copying:88900ns,		z-index:2700ns,		sort:59300ns,		b-grid:3600ns,		b'-grid:896000ns,		dens:1500ns,		force:1400ns,		collision:1400ns,		integrate:1500ns,		FPS:816.986fps
+12.009sec	total:994700ns,		copying:15400ns,		z-index:4100ns,		sort:52800ns,		b-grid:4200ns,		b'-grid:893000ns,		dens:2500ns,		force:1400ns,		collision:1400ns,		integrate:1700ns,		FPS:813.636fps
+14.01sec	total:997600ns,		copying:16700ns,		z-index:4100ns,		sort:50500ns,		b-grid:4100ns,		b'-grid:896300ns,		dens:1600ns,		force:1400ns,		collision:1400ns,		integrate:1600ns,		FPS:808.676fps
+16.011sec	total:1022000ns,		copying:15600ns,		z-index:4900ns,		sort:57900ns,		b-grid:6300ns,		b'-grid:899600ns,		dens:3200ns,		force:2400ns,		collision:2400ns,		integrate:2000ns,		FPS:834.157fps
+18.012sec	total:1022700ns,		copying:18000ns,		z-index:4100ns,		sort:52000ns,		b-grid:4100ns,		b'-grid:902600ns,		dens:6400ns,		force:2000ns,		collision:1800ns,		integrate:2000ns,		FPS:840.354fps
+20.013sec	total:1009700ns,		copying:29700ns,		z-index:4000ns,		sort:50500ns,		b-grid:4100ns,		b'-grid:896600ns,		dens:1500ns,		force:1400ns,		collision:1400ns,		integrate:1700ns,		FPS:847.249fps
+22.015sec	total:1009900ns,		copying:17700ns,		z-index:4500ns,		sort:55200ns,		b-grid:4500ns,		b'-grid:899300ns,		dens:1900ns,		force:1800ns,		collision:1500ns,		integrate:1900ns,		FPS:849.71fps
+24.016sec	total:995900ns,		copying:15800ns,		z-index:4100ns,		sort:51300ns,		b-grid:4100ns,		b'-grid:896800ns,		dens:1500ns,		force:1400ns,		collision:1400ns,		integrate:1600ns,		FPS:858.631fps
+26.018sec	total:1001700ns,		copying:16000ns,		z-index:4300ns,		sort:53000ns,		b-grid:4100ns,		b'-grid:897400ns,		dens:2800ns,		force:1500ns,		collision:1400ns,		integrate:1700ns,		FPS:849.168fps
+28.019sec	total:997500ns,		copying:15000ns,		z-index:4000ns,		sort:52400ns,		b-grid:4000ns,		b'-grid:898100ns,		dens:1600ns,		force:1400ns,		collision:1300ns,		integrate:1600ns,		FPS:846.007fps
+30.021sec	total:1197200ns,		copying:17900ns,		z-index:4200ns,		sort:223800ns,		b-grid:4100ns,		b'-grid:921600ns,		dens:1600ns,		force:1500ns,		collision:1300ns,		integrate:1700ns,		FPS:858.477fps
+32.022sec	total:1206100ns,		copying:15600ns,		z-index:4100ns,		sort:260200ns,		b-grid:4300ns,		b'-grid:894200ns,		dens:2300ns,		force:2000ns,		collision:1400ns,		integrate:1700ns,		FPS:859.169fps
+34.023sec	total:1259500ns,		copying:15600ns,		z-index:4100ns,		sort:252600ns,		b-grid:4200ns,		b'-grid:926900ns,		dens:24800ns,		force:1900ns,		collision:1700ns,		integrate:1900ns,		FPS:859.097fps
+36.024sec	total:1088700ns,		copying:20600ns,		z-index:5000ns,		sort:52300ns,		b-grid:4100ns,		b'-grid:907500ns,		dens:8600ns,		force:3000ns,		collision:2700ns,		integrate:2800ns,		FPS:849.33fps
+38.025sec	total:1200900ns,		copying:15400ns,		z-index:5000ns,		sort:252100ns,		b-grid:6000ns,		b'-grid:886900ns,		dens:5800ns,		force:1800ns,		collision:1400ns,		integrate:1800ns,		FPS:836.008fps
+40.026sec	total:1268000ns,		copying:17200ns,		z-index:10100ns,		sort:272100ns,		b-grid:8600ns,		b'-grid:884300ns,		dens:1700ns,		force:1400ns,		collision:1500ns,		integrate:2200ns,		FPS:857.152fps
+42.027sec	total:1199200ns,		copying:16300ns,		z-index:4100ns,		sort:245300ns,		b-grid:4000ns,		b'-grid:891900ns,		dens:1600ns,		force:1500ns,		collision:1400ns,		integrate:1700ns,		FPS:885.321fps
+44.029sec	total:1064400ns,		copying:16300ns,		z-index:4300ns,		sort:61800ns,		b-grid:4700ns,		b'-grid:900400ns,		dens:2000ns,		force:2000ns,		collision:1700ns,		integrate:2600ns,		FPS:846.404fps
+46.03sec	total:382600ns,		copying:16500ns,		z-index:4400ns,		sort:153200ns,		b-grid:4200ns,		b'-grid:167400ns,		dens:1900ns,		force:1900ns,		collision:1700ns,		integrate:1800ns,		FPS:855.885fps

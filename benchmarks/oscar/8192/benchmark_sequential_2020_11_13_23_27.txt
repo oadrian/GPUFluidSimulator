@@ -1,0 +1,18 @@
+SPH Particle Simulation Benchmark
+Compute mode: sequential
+2.055sec	total:2030592000ns,		dens:771616800ns,		force:1013263300ns,		collision:245502100ns,		integrate:209600ns,		FPS:0fps
+4.12sec	total:2004499700ns,		dens:754875700ns,		force:1005232700ns,		collision:244179100ns,		integrate:211900ns,		FPS:0.492178fps
+6.131sec	total:2009421300ns,		dens:756681400ns,		force:1005648900ns,		collision:246875800ns,		integrate:214800ns,		FPS:0.498783fps
+10.128sec	total:1998607000ns,		dens:755391300ns,		force:1001754000ns,		collision:241249900ns,		integrate:211600ns,		FPS:0.501514fps
+14.123sec	total:1995004400ns,		dens:753315700ns,		force:1000458200ns,		collision:241020900ns,		integrate:209300ns,		FPS:0.500731fps
+18.1sec	total:1988049500ns,		dens:748674800ns,		force:996711000ns,		collision:242454000ns,		integrate:209500ns,		FPS:0.50337fps
+22.081sec	total:1992719900ns,		dens:756502600ns,		force:994651300ns,		collision:241355800ns,		integrate:209900ns,		FPS:0.503372fps
+24.103sec	total:2020835900ns,		dens:754361100ns,		force:1014200200ns,		collision:251989900ns,		integrate:284400ns,		FPS:0.501742fps
+26.126sec	total:2021719900ns,		dens:786775200ns,		force:993321200ns,		collision:241411600ns,		integrate:211600ns,		FPS:0.494759fps
+30.105sec	total:1992110800ns,		dens:754216400ns,		force:996835300ns,		collision:240850100ns,		integrate:208700ns,		FPS:0.503919fps
+34.099sec	total:1995708600ns,		dens:756954800ns,		force:997499800ns,		collision:241024200ns,		integrate:229600ns,		FPS:0.500895fps
+38.075sec	total:1984291200ns,		dens:747901400ns,		force:995263600ns,		collision:240917600ns,		integrate:208300ns,		FPS:0.502457fps
+42.068sec	total:1994862400ns,		dens:751460400ns,		force:999148100ns,		collision:244046200ns,		integrate:207400ns,		FPS:0.500973fps
+46.03sec	total:1979591900ns,		dens:749921300ns,		force:988979300ns,		collision:240315900ns,		integrate:375100ns,		FPS:0.504886fps
+50.007sec	total:1991271100ns,		dens:756840000ns,		force:991331500ns,		collision:242890100ns,		integrate:209200ns,		FPS:0.503969fps
+53.99sec	total:1988575700ns,		dens:756693100ns,		force:990959700ns,		collision:240712100ns,		integrate:210500ns,		FPS:0.502969fps
