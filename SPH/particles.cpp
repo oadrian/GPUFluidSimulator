@@ -92,7 +92,7 @@ int ballr = 10;
 
 ParticleSystem *psystem = 0;
 ParticleSystem::ParticleComputeMode compute_mode = ParticleSystem::CUDA_PARALLEL;
-float benchmark_ifps = 0.0;
+long long frames_rendered = 0;
 
 // fps
 static int fpsCount = 0;
@@ -181,7 +181,7 @@ void runBenchmark(int iterations, char *exec_path)
 
     for (int i = 0; i < iterations; ++i)
     {
-        psystem->update(timestep, benchmark_ifps);
+        psystem->update(timestep, frames_rendered);
     }
 
     cudaDeviceSynchronize();
@@ -212,12 +212,11 @@ void computeFPS()
 {
     frameCount++;
     fpsCount++;
-
+    frames_rendered++;
     if (fpsCount == fpsLimit)
     {
         char fps[256];
         float ifps = 1.f / (sdkGetAverageTimerValue(&timer) / 1000.f);
-        benchmark_ifps = ifps;
         sprintf(fps, "CUDA Particles (%d particles): %3.1f fps", numParticles, ifps);
 
         glutSetWindowTitle(fps);
@@ -238,7 +237,7 @@ void display()
         psystem->setIterations(iterations);
         psystem->setGravity(-gravity);
 
-        psystem->update(timestep, benchmark_ifps);
+        psystem->update(timestep, frames_rendered);
 
         if (renderer)
         {
@@ -494,7 +493,7 @@ void key(unsigned char key, int /*x*/, int /*y*/)
             break;
 
         case 13:
-            psystem->update(timestep, benchmark_ifps);
+            psystem->update(timestep, frames_rendered);
 
             if (renderer)
             {

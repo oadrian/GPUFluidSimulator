@@ -678,7 +678,7 @@ void printZGrid(Grid_item *m_h_B, Grid_item *m_h_B_prime, uint m_h_B_prime_size)
     }
 }
 
-void ParticleSystem::dumpBenchmark(float fps, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t) {
+void ParticleSystem::dumpBenchmark(long long fps, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t) {
     m_timer_curr = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_timer_curr - m_timer_start);
     if (duration.count() > BENCHMARK_FREQ) {
@@ -689,12 +689,12 @@ void ParticleSystem::dumpBenchmark(float fps, long long d_t, long long f_t, long
             "ns,\t\tforce:" << f_t << 
             "ns,\t\tcollision:" << pc_t << 
             "ns,\t\tintegrate:" << i_t << 
-            "ns,\t\tFPS:" << fps <<
-            "fps" << std::endl;
+            "ns,\t\tframes:" << fps <<
+            "frames" << std::endl;
     }
 }
 
-void ParticleSystem::dumpBenchmark(float fps, long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_t) {
+void ParticleSystem::dumpBenchmark(long long fps, long long z_t, long long s_t, long long cbg_t, long long cbpg_t, long long d_t, long long f_t, long long pc_t, long long i_t, long long t_t, long long cp_t) {
     m_timer_curr = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_timer_curr - m_timer_start);
     if (duration.count() > BENCHMARK_FREQ) {
@@ -710,8 +710,8 @@ void ParticleSystem::dumpBenchmark(float fps, long long z_t, long long s_t, long
             "ns,\t\tforce:" << f_t << 
             "ns,\t\tcollision:" << pc_t << 
             "ns,\t\tintegrate:" << i_t << 
-            "ns,\t\tFPS:" << fps <<
-            "fps" << std::endl;
+            "ns,\t\tframes:" << fps <<
+            "frames" << std::endl;
     }
 }
 
