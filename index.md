@@ -9,3 +9,5 @@ Developed by Logan Kojiro and Oscar A Ramirez Poulat in the Fall Semester of 202
 <a href="schedule"> Schedule </a>
 
 <a href="Final_Report.pdf"> Final Report </a>
+
+![SPH_GIF_100K](/images/SPH_100K.gif)
